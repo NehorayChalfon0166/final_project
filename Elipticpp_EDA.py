@@ -3,8 +3,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 # 1. Data folder
-# Use a pre-extracted data folder instead of a zip file.
-# Update `base` if your data folder has a different name or path.
 base = "Elipticpp_data"
 if not os.path.isdir(base):
     raise FileNotFoundError(f"Data folder '{base}' not found. Place the extracted files there or update the path.")
@@ -21,14 +19,25 @@ wallets_classes  = pd.read_csv(os.path.join(base, "wallets_classes.csv"))
 txs = txs_features.merge(txs_classes, on="txId", how="left")
 wallets = wallets_features.merge(wallets_classes, on="address", how="left")
 
+# === MAP NUMERIC CLASSES TO MEANINGFUL LABELS ===
+# Elliptic++: 1 = illicit, 2 = licit, 3 = unknown
+class_mapping = {
+    1: "Illicit",
+    2: "Licit",
+    3: "Unknown"
+}
+
+txs["class_label"] = txs["class"].map(class_mapping)
+wallets["class_label"] = wallets["class"].map(class_mapping)
+
 print("txs:", txs.shape)
 print("wallets:", wallets.shape)
 
 # === BASIC EDA ===
 
-# A. Class distribution
-tx_label_counts = txs["class"].value_counts().sort_index()
-wallet_label_counts = wallets["class"].value_counts().sort_index()
+# A. Class distribution (using meaningful labels)
+tx_label_counts = txs["class_label"].value_counts().sort_index()
+wallet_label_counts = wallets["class_label"].value_counts().sort_index()
 
 print("Tx class counts:\n", tx_label_counts)
 print("Wallet class counts:\n", wallet_label_counts)
@@ -36,7 +45,7 @@ print("Wallet class counts:\n", wallet_label_counts)
 plt.figure()
 tx_label_counts.plot(kind="bar")
 plt.title("Transaction Class Distribution")
-plt.xlabel("Class")
+plt.xlabel("Class label")
 plt.ylabel("Count")
 plt.tight_layout()
 plt.show()
@@ -44,7 +53,7 @@ plt.show()
 plt.figure()
 wallet_label_counts.plot(kind="bar")
 plt.title("Wallet Class Distribution")
-plt.xlabel("Class")
+plt.xlabel("Class label")
 plt.ylabel("Count")
 plt.tight_layout()
 plt.show()
