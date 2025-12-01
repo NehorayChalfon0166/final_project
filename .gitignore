@@ -1,2 +1,6 @@
-Elipticpp_Data/
+# Ignore contents of Elipticpp_Data but keep the folder itself
+Elipticpp_Data/*
+!Elipticpp_Data/.gitkeep
+
+# Ignore virtual environment
 .venv/
