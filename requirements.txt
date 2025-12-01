@@ -1,0 +1,4 @@
+# Minimal runtime dependencies for this project
+pandas
+matplotlib
+numpy
