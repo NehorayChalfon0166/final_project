@@ -1,5 +1,10 @@
-# Minimal runtime dependencies for this project
+# Runtime dependencies for this project
 pandas
 matplotlib
 numpy
 seaborn
+networkx
+scipy
+scikit-learn
+jupyter
+ipykernel
