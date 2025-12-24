@@ -1,4 +1,4 @@
-# Runtime dependencies for this project
+# Data Analysis & Visualization
 pandas
 matplotlib
 numpy
@@ -6,5 +6,13 @@ seaborn
 networkx
 scipy
 scikit-learn
+
+# Jupyter & Notebooks
 jupyter
 ipykernel
+
+# Backend - FastAPI
+fastapi==0.104.1
+uvicorn==0.24.0
+pydantic==2.5.0
+python-multipart==0.0.6

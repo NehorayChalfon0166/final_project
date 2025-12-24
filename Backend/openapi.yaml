@@ -1,0 +1,412 @@
+openapi: 3.0.0
+info:
+  title: Blockchain Analysis API
+  description: FastAPI backend for wallet and transaction validation
+  version: 1.0.0
+  contact:
+    name: API Support
+
+servers:
+  - url: http://localhost:8000
+    description: Development server
+  - url: https://api.example.com
+    description: Production server
+
+tags:
+  - name: health
+    description: Health check endpoints
+  - name: wallet
+    description: Wallet management and validation
+  - name: transactions
+    description: Transaction management and validation
+
+paths:
+  /api/v1/health:
+    get:
+      tags:
+        - health
+      summary: Check API health status
+      operationId: health_check
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: healthy
+
+  /api/v1/ping:
+    get:
+      tags:
+        - health
+      summary: Ping the API
+      operationId: ping
+      responses:
+        '200':
+          description: Pong response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: pong
+
+  /api/v1/wallets:
+    get:
+      tags:
+        - wallet
+      summary: List all wallets
+      operationId: list_wallets
+      responses:
+        '200':
+          description: List of all wallets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Wallet'
+
+    post:
+      tags:
+        - wallet
+      summary: Create a new wallet
+      operationId: create_wallet
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WalletCreate'
+      responses:
+        '200':
+          description: Wallet created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Wallet'
+        '400':
+          description: Invalid wallet address format
+
+  /api/v1/wallets/{wallet_id}:
+    get:
+      tags:
+        - wallet
+      summary: Get a specific wallet
+      operationId: get_wallet
+      parameters:
+        - name: wallet_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Wallet details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Wallet'
+        '404':
+          description: Wallet not found
+
+    put:
+      tags:
+        - wallet
+      summary: Update an existing wallet
+      operationId: update_wallet
+      parameters:
+        - name: wallet_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WalletCreate'
+      responses:
+        '200':
+          description: Wallet updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Wallet'
+        '404':
+          description: Wallet not found
+
+    delete:
+      tags:
+        - wallet
+      summary: Delete a wallet
+      operationId: delete_wallet
+      parameters:
+        - name: wallet_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Wallet deleted successfully
+        '404':
+          description: Wallet not found
+
+  /api/v1/wallets/validate:
+    post:
+      tags:
+        - wallet
+      summary: Validate a wallet address
+      operationId: validate_wallet
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WalletCreate'
+      responses:
+        '200':
+          description: Validation result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  address:
+                    type: string
+                  is_valid:
+                    type: boolean
+                  message:
+                    type: string
+
+  /api/v1/transactions:
+    get:
+      tags:
+        - transactions
+      summary: List all transactions
+      operationId: list_transactions
+      responses:
+        '200':
+          description: List of all transactions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Transaction'
+
+    post:
+      tags:
+        - transactions
+      summary: Create a new transaction
+      operationId: create_transaction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransactionCreate'
+      responses:
+        '200':
+          description: Transaction created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+        '400':
+          description: Invalid transaction format or values
+
+  /api/v1/transactions/{transaction_id}:
+    get:
+      tags:
+        - transactions
+      summary: Get a specific transaction
+      operationId: get_transaction
+      parameters:
+        - name: transaction_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Transaction details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+        '404':
+          description: Transaction not found
+
+    put:
+      tags:
+        - transactions
+      summary: Update an existing transaction
+      operationId: update_transaction
+      parameters:
+        - name: transaction_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransactionCreate'
+      responses:
+        '200':
+          description: Transaction updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+        '404':
+          description: Transaction not found
+
+    delete:
+      tags:
+        - transactions
+      summary: Delete a transaction
+      operationId: delete_transaction
+      parameters:
+        - name: transaction_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Transaction deleted successfully
+        '404':
+          description: Transaction not found
+
+  /api/v1/transactions/validate:
+    post:
+      tags:
+        - transactions
+      summary: Validate a transaction
+      operationId: validate_transaction_endpoint
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransactionCreate'
+      responses:
+        '200':
+          description: Validation result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tx_hash:
+                    type: string
+                  is_valid:
+                    type: boolean
+                  message:
+                    type: string
+
+components:
+  schemas:
+    Wallet:
+      type: object
+      properties:
+        id:
+          type: integer
+        address:
+          type: string
+          description: Wallet address (Ethereum, Bitcoin, or hex format)
+        is_valid:
+          type: boolean
+        balance:
+          type: number
+          nullable: true
+        created_at:
+          type: string
+          nullable: true
+      required:
+        - id
+        - address
+        - is_valid
+
+    WalletCreate:
+      type: object
+      properties:
+        address:
+          type: string
+          description: Valid wallet address
+        balance:
+          type: number
+          nullable: true
+      required:
+        - address
+
+    Transaction:
+      type: object
+      properties:
+        id:
+          type: integer
+        tx_hash:
+          type: string
+          description: Transaction hash (hex format)
+        from_address:
+          type: string
+          description: Sender wallet address
+        to_address:
+          type: string
+          description: Recipient wallet address
+        amount:
+          type: number
+          description: Transaction amount
+        status:
+          type: string
+          enum: [pending, confirmed, failed]
+        timestamp:
+          type: string
+          nullable: true
+        is_valid:
+          type: boolean
+      required:
+        - id
+        - tx_hash
+        - from_address
+        - to_address
+        - amount
+        - status
+        - is_valid
+
+    TransactionCreate:
+      type: object
+      properties:
+        tx_hash:
+          type: string
+          description: Transaction hash (hex format)
+        from_address:
+          type: string
+          description: Sender wallet address
+        to_address:
+          type: string
+          description: Recipient wallet address
+        amount:
+          type: number
+          description: Transaction amount (must be positive)
+        status:
+          type: string
+          enum: [pending, confirmed, failed]
+          default: pending
+      required:
+        - tx_hash
+        - from_address
+        - to_address
+        - amount
