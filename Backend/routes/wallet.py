@@ -1,104 +1,62 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import Optional, Dict, List, Any
 import re
+from ..utils.model_fit_utils import analyze_wallet_pipeline
 
 router = APIRouter()
 
 # Pydantic models
-class Wallet(BaseModel):
-    id: int
+class WalletAnalysis(BaseModel):
     address: str
-    is_valid: bool
-    balance: Optional[float] = None
-    created_at: Optional[str] = None
 
-class WalletCreate(BaseModel):
-    address: str
-    balance: Optional[float] = None
 
-# In-memory storage for demo
-wallets_db: List[Wallet] = []
+class GraphData(BaseModel):
+    x_shape: tuple
+    y_shape: tuple
+    edge_index_shape: tuple
+    edge_attr_shape: tuple
+
+
+class AnalysisResult(BaseModel):
+    wallet_address: str
+    status: str
+    nodes_count: int
+    edges_count: int
+    graph_data: Dict[str, Any]
+    prediction: Optional[List[float]] = None
+    risk_score: Optional[float] = None
+    message: Optional[str] = None
+    inference_error: Optional[str] = None
+
 
 def validate_wallet_address(address: str) -> bool:
-    """
-    Basic wallet address validation
-    Checks for common address formats (Ethereum, Bitcoin, etc.)
-    """
-    # Ethereum address format (0x followed by 40 hex characters)
-    if re.match(r'^0x[a-fA-F0-9]{40}$', address):
+    """Validate wallet address format"""
+    if re.match(r'^0x[a-fA-F0-9]{40}$', address):  # Ethereum
         return True
-    # Bitcoin address format
-    if re.match(r'^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$', address):
+    if re.match(r'^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$', address):  # Bitcoin
         return True
-    # Generic hex address
-    if re.match(r'^[a-fA-F0-9]{40,64}$', address):
+    if re.match(r'^[a-fA-F0-9]{40,64}$', address):  # Generic hex
         return True
     return False
 
-@router.get("/wallets", response_model=List[Wallet])
-async def list_wallets():
-    """Get all wallets"""
-    return wallets_db
-
-@router.get("/wallets/{wallet_id}", response_model=Wallet)
-async def get_wallet(wallet_id: int):
-    """Get a specific wallet by ID"""
-    for wallet in wallets_db:
-        if wallet.id == wallet_id:
-            return wallet
-    raise HTTPException(status_code=404, detail="Wallet not found")
-
-@router.post("/wallets/validate")
-async def validate_wallet(wallet: WalletCreate):
-    """Validate a wallet address"""
-    is_valid = validate_wallet_address(wallet.address)
-    return {
-        "address": wallet.address,
-        "is_valid": is_valid,
-        "message": "Valid wallet address" if is_valid else "Invalid wallet address format"
-    }
-
-@router.post("/wallets", response_model=Wallet)
-async def create_wallet(wallet: WalletCreate):
-    """Create a new wallet (address must be valid)"""
-    if not validate_wallet_address(wallet.address):
+@router.get("/analyze/{address}", response_model=AnalysisResult)
+async def analyze_wallet(address: str, model_path: Optional[str] = None):
+    """
+    Analyze a wallet address: fetch transactions, preprocess, and run inference.
+    
+    Args:
+        address: Wallet address to analyze
+        model_path: Optional path to saved model
+    
+    Returns:
+        Analysis results with graph statistics and predictions (JSON)
+    """
+    if not validate_wallet_address(address):
         raise HTTPException(status_code=400, detail="Invalid wallet address format")
     
-    new_wallet = Wallet(
-        id=len(wallets_db) + 1,
-        address=wallet.address,
-        is_valid=True,
-        balance=wallet.balance or 0.0,
-        created_at="2024-12-24"
-    )
-    wallets_db.append(new_wallet)
-    return new_wallet
-
-@router.put("/wallets/{wallet_id}", response_model=Wallet)
-async def update_wallet(wallet_id: int, wallet: WalletCreate):
-    """Update an existing wallet"""
-    if not validate_wallet_address(wallet.address):
-        raise HTTPException(status_code=400, detail="Invalid wallet address format")
-    
-    for idx, existing_wallet in enumerate(wallets_db):
-        if existing_wallet.id == wallet_id:
-            updated_wallet = Wallet(
-                id=wallet_id,
-                address=wallet.address,
-                is_valid=True,
-                balance=wallet.balance or 0.0,
-                created_at=existing_wallet.created_at
-            )
-            wallets_db[idx] = updated_wallet
-            return updated_wallet
-    raise HTTPException(status_code=404, detail="Wallet not found")
-
-@router.delete("/wallets/{wallet_id}")
-async def delete_wallet(wallet_id: int):
-    """Delete a wallet"""
-    for idx, wallet in enumerate(wallets_db):
-        if wallet.id == wallet_id:
-            wallets_db.pop(idx)
-            return {"message": "Wallet deleted"}
-    raise HTTPException(status_code=404, detail="Wallet not found")
+    try:
+        result = analyze_wallet_pipeline(address, model_path)
+        return AnalysisResult(**result)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Analysis failed: {str(e)}")
