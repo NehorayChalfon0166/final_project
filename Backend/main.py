@@ -1,26 +1,26 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
 
 # Import routers
 from routes import health, wallet, transactions
 
-# Lifespan event handler
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Startup event
-    print("Application starting up...")
-    yield
-    # Shutdown event
-    print("Application shutting down...")
+# Import model class so it's available for torch.load
+from routes.utils.model_fit_utils import CryptoGNN
 
 # Initialize FastAPI app
 app = FastAPI(
-    title="My API",
-    description="A FastAPI backend template",
-    version="1.0.0",
-    lifespan=lifespan
+    title="Crypto Wallet Analysis API",
+    description="API for analyzing cryptocurrency wallet transactions and risk assessment",
+    version="1.0.0"
 )
+
+@app.on_event("startup")
+async def startup_event():
+    print("✓ Server starting up...")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    print("✓ Server shutting down...")
 
 # Add CORS middleware
 app.add_middleware(
@@ -43,4 +43,6 @@ async def root():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
+    print("Starting server on http://localhost:8000")
+    print("Docs available at http://localhost:8000/docs")
+    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)

@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional, Dict, List, Any
 import re
-from ..utils.model_fit_utils import analyze_wallet_pipeline
+from routes.utils.model_fit_utils import analyze_wallet_pipeline
 
 router = APIRouter()
 
@@ -24,8 +24,10 @@ class AnalysisResult(BaseModel):
     nodes_count: int
     edges_count: int
     graph_data: Dict[str, Any]
+    classification: Optional[str] = None  # "criminal" or "benign"
     prediction: Optional[List[float]] = None
     risk_score: Optional[float] = None
+    confidence: Optional[float] = None
     message: Optional[str] = None
     inference_error: Optional[str] = None
 
@@ -41,13 +43,13 @@ def validate_wallet_address(address: str) -> bool:
     return False
 
 @router.get("/analyze/{address}", response_model=AnalysisResult)
-async def analyze_wallet(address: str, model_path: Optional[str] = None):
+async def analyze_wallet(address: str, model_path: Optional[str] = "../models/crypto_gnn_model.pt"):
     """
     Analyze a wallet address: fetch transactions, preprocess, and run inference.
     
     Args:
         address: Wallet address to analyze
-        model_path: Optional path to saved model
+        model_path: Optional path to saved model (defaults to crypto_gnn_model.pt)
     
     Returns:
         Analysis results with graph statistics and predictions (JSON)

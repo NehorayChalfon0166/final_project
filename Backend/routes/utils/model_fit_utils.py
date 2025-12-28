@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
 import torch
+import torch.nn.functional as F
+from torch_geometric.nn import GATv2Conv
 import requests
 import time
 import os
@@ -8,10 +10,44 @@ from sklearn.preprocessing import StandardScaler
 
 
 # Configuration - Update these based on your dataset
+# These must match the features used during model training (18 features from REAL-CATS)
 NUMERIC_FEATURES = [
-    'in_degree', 'out_degree', 'pagerank', 'clustering_coefficient',
-    'betweenness', 'closeness', 'eigenvector', 'harmonic'
+    'balance', 
+    'total_received_USD', 
+    'total_sent_USD', 
+    'transaction_fee', 
+    'transaction_fee_Variance',
+    'max_sent_amount', 
+    'min_sent_amount',
+    'lifetime', 
+    'total_output_slots', 
+    'total_input_slots', 
+    'activity_w', 
+    'activity_d', 
+    'activity_time',
+    'transaction_number',
+    'payment_transactions',
+    'receipt_transactions',
+    'received_Variance_USD',
+    'sent_Variance_USD'
 ]
+
+
+# Define the GNN model architecture (must match training)
+class CryptoGNN(torch.nn.Module):
+    def __init__(self, num_node_features, num_edge_features, hidden_channels, num_classes):
+        super().__init__()
+        self.conv1 = GATv2Conv(num_node_features, hidden_channels, heads=2, edge_dim=num_edge_features)
+        self.conv2 = GATv2Conv(hidden_channels * 2, hidden_channels, heads=1, edge_dim=num_edge_features)
+        self.classifier = torch.nn.Linear(hidden_channels, num_classes)
+    
+    def forward(self, x, edge_index, edge_attr):
+        h = self.conv1(x, edge_index, edge_attr=edge_attr)
+        h = h.relu()
+        h = F.dropout(h, p=0.3, training=self.training)
+        h = self.conv2(h, edge_index, edge_attr=edge_attr)
+        h = h.relu()
+        return self.classifier(h)
 
 
 def fetch_edges_mempool_directed(wallet_address):
@@ -105,15 +141,37 @@ def fetch_edges_mempool_directed(wallet_address):
 def process_and_save_tensors(wallet_address, df_edges):
     print("\n4. Building Tensors (with Log Scaling)...")
     
-    # Create a single-node dataframe for the wallet address
+    # Calculate basic features from transaction data
+    incoming = df_edges[df_edges['direction'] == 'incoming'] if not df_edges.empty else pd.DataFrame()
+    outgoing = df_edges[df_edges['direction'] == 'outgoing'] if not df_edges.empty else pd.DataFrame()
+    
+    total_received = incoming['weight'].sum() if not incoming.empty else 0
+    total_sent = outgoing['weight'].sum() if not outgoing.empty else 0
+    transaction_count = len(df_edges) if not df_edges.empty else 0
+    
+    # Create a single-node dataframe for the wallet address with computed features
     df_nodes = pd.DataFrame({
         'address': [wallet_address],
-        'label': [1]  # Default label for the query address
+        'label': [1],  # Default label for the query address
+        'balance': [total_received - total_sent],
+        'total_received_USD': [total_received / 1e8],  # Convert satoshis to BTC
+        'total_sent_USD': [total_sent / 1e8],
+        'transaction_fee': [0],  # Not available from API
+        'transaction_fee_Variance': [0],
+        'max_sent_amount': [outgoing['weight'].max() / 1e8 if not outgoing.empty else 0],
+        'min_sent_amount': [outgoing['weight'].min() / 1e8 if not outgoing.empty else 0],
+        'lifetime': [0],  # Would need earliest/latest timestamps
+        'total_output_slots': [len(outgoing)],
+        'total_input_slots': [len(incoming)],
+        'activity_w': [0],  # Would need weekly data
+        'activity_d': [0],  # Would need daily data
+        'activity_time': [0],
+        'transaction_number': [transaction_count],
+        'payment_transactions': [len(outgoing)],
+        'receipt_transactions': [len(incoming)],
+        'received_Variance_USD': [incoming['weight'].std() / 1e8 if not incoming.empty else 0],
+        'sent_Variance_USD': [outgoing['weight'].std() / 1e8 if not outgoing.empty else 0]
     })
-    
-    # Add default numeric features
-    for feature in NUMERIC_FEATURES:
-        df_nodes[feature] = 0.0
     
     # A. Clean Edges
     if not df_edges.empty:
@@ -231,8 +289,21 @@ def analyze_wallet_pipeline(wallet_address: str, model_path: str = None):
     if model_path:
         print(f"[4/4] Running inference...")
         try:
+            import os
+            # Check if model file exists
+            if not os.path.exists(model_path):
+                # Try relative to Backend directory
+                alt_path = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'models', 'crypto_gnn_model.pt')
+                if os.path.exists(alt_path):
+                    model_path = alt_path
+                else:
+                    raise FileNotFoundError(f"Model not found at {model_path} or {alt_path}")
+            
+            print(f"   Loading model from: {model_path}")
             device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-            model = torch.load(model_path, map_location=device)
+            
+            # Load model with weights_only=False to allow custom CryptoGNN class
+            model = torch.load(model_path, map_location=device, weights_only=False)
             model.eval()
             
             with torch.no_grad():
@@ -245,16 +316,43 @@ def analyze_wallet_pipeline(wallet_address: str, model_path: str = None):
                 else:
                     output = model(x, edge_index)
                 
-                prediction = output[0].cpu().numpy()
-                risk_score = float(prediction[0]) if len(prediction) > 0 else 0.0
+                # Get prediction for the queried wallet (node 0)
+                logits = output[0].cpu()
                 
-                results["prediction"] = prediction.tolist() if hasattr(prediction, 'tolist') else prediction
+                # Apply softmax to convert logits to probabilities
+                probabilities = F.softmax(logits, dim=0).numpy()
+                
+                # For binary classification: [prob_benign, prob_criminal]
+                if len(probabilities) >= 2:
+                    prob_benign = float(probabilities[0])
+                    prob_criminal = float(probabilities[1])
+                    risk_score = prob_criminal
+                else:
+                    # Single output - treat as probability
+                    prob_criminal = float(probabilities[0])
+                    prob_benign = 1.0 - prob_criminal
+                    risk_score = prob_criminal
+                
+                # Classify based on threshold (0.5)
+                classification = "criminal" if risk_score > 0.5 else "benign"
+                confidence = max(prob_criminal, prob_benign)
+                
+                results["prediction"] = probabilities.tolist() if hasattr(probabilities, 'tolist') else [float(p) for p in probabilities]
                 results["risk_score"] = risk_score
+                results["classification"] = classification
+                results["confidence"] = confidence
+                results["message"] = f"Wallet classified as {classification.upper()} with {confidence*100:.1f}% confidence"
+                
+                print(f"   Classification: {classification.upper()}")
+                print(f"   Risk Score: {risk_score:.4f}")
+                print(f"   Confidence: {confidence*100:.1f}%")
         except Exception as e:
             print(f"[!] Inference error: {str(e)}")
             results["inference_error"] = str(e)
+            results["message"] = f"Could not run inference: {str(e)}"
     else:
         print(f"[!] No model provided, skipping inference")
+        results["message"] = "Analysis completed without classification (no model provided)"
     
     print(f"\n[✓] Analysis complete!")
     print(f"   Results: {results}")

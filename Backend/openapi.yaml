@@ -1,10 +1,11 @@
 openapi: 3.0.0
 info:
-  title: Blockchain Analysis API
-  description: FastAPI backend for wallet and transaction validation
+  title: Crypto Wallet Analysis API
+  description: Real-time cryptocurrency wallet risk assessment using Graph Neural Networks
   version: 1.0.0
   contact:
     name: API Support
+    email: support@example.com
 
 servers:
   - url: http://localhost:8000
@@ -56,6 +57,38 @@ paths:
                   message:
                     type: string
                     example: pong
+
+  /api/v1/analyze/{address}:
+    get:
+      tags:
+        - wallet
+      summary: Analyze cryptocurrency wallet for risk assessment
+      description: Fetches transaction graph, computes features, and runs GNN model inference
+      operationId: analyze_wallet
+      parameters:
+        - name: address
+          in: path
+          required: true
+          description: Wallet address (Bitcoin, Ethereum, or generic hex)
+          schema:
+            type: string
+            example: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"
+        - name: model_path
+          in: query
+          required: false
+          description: Path to trained GNN model
+          schema:
+            type: string
+            default: "../models/crypto_gnn_model.pt"
+      responses:
+        '200':
+          description: Analysis completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalysisResult'
+        '400':
+          description: Invalid wallet address or analysis failed
 
   /api/v1/wallets:
     get:
@@ -319,6 +352,82 @@ paths:
 
 components:
   schemas:
+    AnalysisResult:
+      type: object
+      properties:
+        wallet_address:
+          type: string
+          description: The analyzed wallet address
+          example: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"
+        status:
+          type: string
+          description: Analysis status
+          example: "success"
+        nodes_count:
+          type: integer
+          description: Number of nodes in transaction graph
+          example: 50
+        edges_count:
+          type: integer
+          description: Number of edges in transaction graph
+          example: 51
+        graph_data:
+          type: object
+          description: Graph tensor shapes
+          properties:
+            x_shape:
+              type: array
+              items:
+                type: integer
+              example: [50, 18]
+            y_shape:
+              type: array
+              items:
+                type: integer
+              example: [50]
+            edge_index_shape:
+              type: array
+              items:
+                type: integer
+              example: [2, 51]
+            edge_attr_shape:
+              type: array
+              items:
+                type: integer
+              example: [51, 1]
+        classification:
+          type: string
+          nullable: true
+          enum: [criminal, benign]
+          description: Wallet classification result
+          example: "benign"
+        prediction:
+          type: array
+          nullable: true
+          items:
+            type: number
+          description: Model prediction probabilities [benign, criminal]
+          example: [0.544, 0.456]
+        risk_score:
+          type: number
+          nullable: true
+          description: Probability of criminal activity (0-1)
+          example: 0.456
+        confidence:
+          type: number
+          nullable: true
+          description: Confidence of classification (0-1)
+          example: 0.544
+        message:
+          type: string
+          nullable: true
+          description: Human-readable result message
+          example: "Wallet classified as BENIGN with 54.4% confidence"
+        inference_error:
+          type: string
+          nullable: true
+          description: Error message if inference failed
+
     Wallet:
       type: object
       properties:

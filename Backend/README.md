@@ -1,174 +1,255 @@
 # Backend API - Cryptocurrency Wallet Risk Analysis
 
-FastAPI backend for real-time cryptocurrency wallet analysis and risk classification using Graph Neural Networks.
+FastAPI backend for real-time cryptocurrency wallet analysis and risk classification using Graph Neural Networks (GNN).
+
+## 🎯 Features
+
+- **Real-time Wallet Analysis**: Fetch live transaction data from blockchain
+- **GNN-Based Risk Assessment**: Binary classification (Criminal/Benign)
+- **Transaction Graph Construction**: Build directed graphs from wallet transactions
+- **Feature Engineering**: Compute 18 behavioral features from transaction patterns
+- **RESTful API**: Easy integration with frontend applications
 
 ## 🚀 Quick Start
+
+### Prerequisites
+
+- Python 3.8+
+- Virtual environment activated
+- Dependencies installed from `requirements.txt`
 
 ### Install Dependencies
 
 ```bash
-pip install -r ../requirements.txt
+# From project root
+pip install -r requirements.txt
 ```
 
 ### Run the Server
 
 ```bash
+cd Backend
 python main.py
 ```
 
-The API will be available at `http://localhost:8000`
-
-### Access Documentation
-
+The API will be available at:
+- **Server**: http://localhost:8000
 - **Swagger UI**: http://localhost:8000/docs
 - **ReDoc**: http://localhost:8000/redoc
 
 ## 📡 API Endpoints
 
-### Wallet Analysis
+### 🔍 Wallet Analysis
 
-#### `POST /api/v1/analyze/{address}`
+#### `GET /api/v1/analyze/{address}`
+
 Analyze a cryptocurrency wallet address for risk assessment.
 
 **Parameters:**
-- `address` (path) - Wallet address to analyze (Bitcoin, Ethereum, or hex format)
-- `model_path` (query, optional) - Path to trained model file
-- `save_to_db` (query, optional, default=true) - Save results to database
+- `address` (path, required) - Wallet address to analyze
+  - Bitcoin: `1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa`
+  - Ethereum: `0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb`
+  - Generic hex: 40-64 character hex string
+- `model_path` (query, optional) - Path to trained model (default: `../models/crypto_gnn_model.pt`)
 
 **Response:**
 ```json
 {
   "wallet_address": "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa",
   "status": "success",
-  "nodes_count": 150,
-  "edges_count": 423,
+  "nodes_count": 50,
+  "edges_count": 51,
   "graph_data": {
-    "x_shape": [150, 8],
-    "y_shape": [150],
-    "edge_index_shape": [2, 423],
-    "edge_attr_shape": [423, 1]
+    "x_shape": [50, 18],
+    "y_shape": [50],
+    "edge_index_shape": [2, 51],
+    "edge_attr_shape": [51, 1]
   },
-  "risk_score": 0.73,
-  "prediction": [0.27, 0.73]
+  "classification": "benign",
+  "prediction": [0.544, 0.456],
+  "risk_score": 0.456,
+  "confidence": 0.544,
+  "message": "Wallet classified as BENIGN with 54.4% confidence"
 }
 ```
 
-**Example:**
+**Classification:**
+- `"benign"` - Risk score ≤ 0.5 (Low risk)
+- `"criminal"` - Risk score > 0.5 (High risk)
+
+**Example cURL:**
 ```bash
-curl -X POST "http://localhost:8000/api/v1/analyze/1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa?model_path=../models/crypto_gnn_model.pt"
+curl -X GET "http://localhost:8000/api/v1/analyze/1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"
 ```
 
-### Wallet Management (CRUD)
+**Example Response Fields:**
+- `classification` - Final verdict: "criminal" or "benign"
+- `risk_score` - Probability of criminal activity (0.0 to 1.0)
+- `confidence` - Confidence in classification (0.0 to 1.0)
+- `prediction` - [prob_benign, prob_criminal]
 
-#### `GET /api/v1/wallets`
-List all stored wallet records.
-
-**Response:**
-```json
-[
-  {
-    "id": 1,
-    "address": "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa",
-    "is_valid": true,
-    "balance": 0.0,
-    "risk_score": 0.73,
-    "last_analyzed": "2025-12-28T10:30:00",
-    "created_at": "2025-12-28T09:00:00"
-  }
-]
-```
-
-#### `GET /api/v1/wallets/{wallet_id}`
-Get a specific wallet by ID.
-
-#### `POST /api/v1/wallets/validate`
-Validate a wallet address format.
-
-**Request:**
-```json
-{
-  "address": "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa",
-  "balance": 0.0
-}
-```
-
-**Response:**
-```json
-{
-  "address": "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa",
-  "is_valid": true,
-  "message": "Valid wallet address"
-}
-```
-
-#### `POST /api/v1/wallets`
-Create a new wallet record.
-
-#### `PUT /api/v1/wallets/{wallet_id}`
-Update an existing wallet.
-
-#### `DELETE /api/v1/wallets/{wallet_id}`
-Delete a wallet record.
-
-### Health & Status
+### ❤️ Health Check
 
 #### `GET /api/v1/health`
+
 Check API health status.
 
+**Response:**
+```json
+{
+  "status": "healthy"
+```
+
 #### `GET /api/v1/ping`
-Ping the API.
 
-## 🧠 Model Utilities
+Simple ping endpoint to test connectivity.
 
-The core ML functionality is in `routes/utils/model_fit_utils.py`.
+**Response:**
+```json
+{
+  "message": "pong"
+}
+```
 
-### Real-time Analysis Functions
+### 💰 Transaction Endpoints
 
-- `fetch_edges_mempool_directed(wallet_address)` - Fetch transaction edges from mempool.space
-- `process_and_save_tensors(wallet_address, df_edges)` - Build graph tensors
-- `analyze_wallet_pipeline(wallet_address, model_path)` - Complete analysis pipeline
+#### `GET /api/v1/transactions`
+List all transactions (in-memory demo).
 
-### Training Functions
+#### `POST /api/v1/transactions`
+Create a new transaction record.
 
-- `load_and_label_datasets()` - Load REAL-CATS datasets
-- `merge_datasets()` - Merge benign/criminal data
-- `perform_feature_engineering()` - Create engineered features
-- `train_model()` - Train GNN model
+#### `GET /api/v1/transactions/{tx_id}`
+Get specific transaction details.
 
-### Model Architecture
+## 🏗️ Project Structure
+
+```
+Backend/
+├── main.py                 # FastAPI application entry point
+├── openapi.yaml           # OpenAPI 3.0 specification
+├── README.md              # This file
+├── routes/
+│   ├── __init__.py
+│   ├── health.py          # Health check endpoints
+│   ├── wallet.py          # Wallet analysis endpoint
+│   ├── transactions.py    # Transaction management
+│   └── utils/
+│       ├── __init__.py
+│       └── model_fit_utils.py  # ML utilities & GNN model
+```
+
+## 🧠 ML Pipeline
+
+### Analysis Flow
+
+1. **Fetch Transactions** - Pull live data from mempool.space API
+2. **Build Graph** - Construct directed transaction graph
+3. **Feature Engineering** - Compute 18 REAL-CATS features
+4. **Preprocessing** - Log scaling & standardization
+5. **GNN Inference** - Run Graph Attention Network model
+6. **Classification** - Binary output (Criminal/Benign)
+
+### Model Architecture (CryptoGNN)
 
 ```python
 class CryptoGNN(torch.nn.Module):
     """Graph Attention Network for wallet risk classification"""
-    - GATv2Conv Layer 1 (2 heads)
+    - Input: 18 node features
+    - GATv2Conv Layer 1 (2 attention heads, 32 hidden channels)
     - Dropout (0.3)
-    - GATv2Conv Layer 2 (1 head)
-    - Linear Classifier (2 classes)
+    - GATv2Conv Layer 2 (1 attention head, 32 hidden channels)  
+    - Linear Classifier (2 output classes: benign, criminal)
 ```
 
-## 🎓 Training Your Model
+### Feature Set (18 Features)
+
+From REAL-CATS dataset:
+- **Balance Features**: balance, total_received_USD, total_sent_USD
+- **Transaction Fees**: transaction_fee, transaction_fee_Variance
+- **Amount Statistics**: max_sent_amount, min_sent_amount
+- **Temporal Features**: lifetime, activity_w, activity_d, activity_time
+- **Transaction Counts**: transaction_number, payment_transactions, receipt_transactions
+- **Slots**: total_output_slots, total_input_slots
+- **Variance**: received_Variance_USD, sent_Variance_USD
+
+## 🔧 Configuration
+
+### Environment Variables
+
+Create a `.env` file (optional):
+```bash
+MODEL_PATH=../models/crypto_gnn_model.pt
+API_HOST=127.0.0.1
+API_PORT=8000
+DEBUG=True
+```
+
+### Model Path
+
+Default model location: `../models/crypto_gnn_model.pt`
+
+Override via query parameter:
+```
+GET /api/v1/analyze/{address}?model_path=/custom/path/model.pt
+```
+
+## 📝 Development
+
+### Running in Development Mode
 
 ```bash
-python train_model.py
+# With auto-reload
+python main.py
+
+# Or with uvicorn directly
+uvicorn main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-Requires REAL-CATS data in `../Real_Cats_data/` directory.
+### Code Quality
 
-## 📊 Feature Sets
+Recommended tools:
+```bash
+# Format code
+black .
 
-### Basic Features (8) - Real-time Inference
-- in_degree, out_degree, pagerank
-- clustering_coefficient, betweenness, closeness
-- eigenvector, harmonic
+# Type checking
+mypy .
 
-### Full Features (20) - Training
-- Volume: balance, total_received_USD, total_sent_USD
-- Velocity: lifetime, transaction_number, activity metrics
-- Behavior: fees, variances, payment patterns
-- Engineered: flow_ratio, fan_ratio
+# Linting
+pylint routes/
+```
 
-## 📚 Related Documentation
+## 🧪 Testing
 
-- Main README: [../README.md](../README.md)
-- REAL-CATS Dataset: [../README_cats.md](../README_cats.md)
-- Elliptic++ Dataset: [../README_eliptic.md](../README_eliptic.md)
+### Test with cURL
+
+```bash
+# Health check
+curl http://localhost:8000/api/v1/health
+
+# Analyze wallet
+curl http://localhost:8000/api/v1/analyze/1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa
+```
+
+### Test with Postman
+
+Import the OpenAPI spec from `openapi.yaml` or use the Swagger UI at `/docs`.
+
+## 📚 Additional Resources
+
+- **Main Project README**: [../README.md](../README.md)
+- **REAL-CATS Dataset Info**: [../README_cats.md](../README_cats.md)
+- **Elliptic++ Dataset Info**: [../README_eliptic.md](../README_eliptic.md)
+- **EDA Findings**: [../eda/FINDINGS.md](../eda/FINDINGS.md)
+
+## ⚠️ Important Notes
+
+- API rate limit: 1 request/second for mempool.space
+- Analysis time: ~2-5 seconds per wallet (depends on transaction count)
+- Model requires 18 input features (matches REAL-CATS training data)
+- Classification threshold: risk_score > 0.5 = criminal
+
+## 📄 License
+
+Part of the Cryptocurrency Wallet Risk Analysis project.
