@@ -1,0 +1,22 @@
+2025-12-25 13:08:52,677 INFO    MainThread:28352 [wandb_init.py:setup_run_log_directory():714] Logging user logs to d:\Projects\final_project\elliptic_model\wandb\run-20251225_130852-8z08b8f5\logs\debug.log
+2025-12-25 13:08:52,678 INFO    MainThread:28352 [wandb_init.py:setup_run_log_directory():715] Logging internal logs to d:\Projects\final_project\elliptic_model\wandb\run-20251225_130852-8z08b8f5\logs\debug-internal.log
+2025-12-25 13:08:52,678 INFO    MainThread:28352 [wandb_init.py:init():841] calling init triggers
+2025-12-25 13:08:52,678 INFO    MainThread:28352 [wandb_init.py:init():846] wandb.init called with sweep_config: {}
+config: {'data_dir': '../Elipticpp_Data', 'include_unknown': False, 'time_step': None, 'model_type': 'graphsage', 'hidden_channels': 128, 'num_layers': 3, 'dropout': 0.5, 'epochs': 200, 'lr': 0.01, 'weight_decay': 0.0005, 'patience': 20, 'strategy': 'weighted', 'focal_gamma': 2.0, 'smote_ratio': 0.5, 'use_wandb': True, 'wandb_project': 'elliptic-fraud-detection', 'wandb_entity': 'orisin-ben-gurion-university-of-the-negev', 'run_name': 'graphsage_weighted_h128_l3_binary', '_wandb': {}}
+2025-12-25 13:08:56,011 INFO    MainThread:28352 [wandb_init.py:init():889] starting backend
+2025-12-25 13:08:56,011 INFO    MainThread:28352 [wandb_init.py:init():892] sending inform_init request
+2025-12-25 13:08:56,014 INFO    MainThread:28352 [wandb_init.py:init():900] backend started and connected
+2025-12-25 13:08:56,021 INFO    MainThread:28352 [wandb_run.py:_label_probe_notebook():1334] probe notebook
+2025-12-25 13:08:56,033 INFO    MainThread:28352 [wandb_init.py:init():970] updated telemetry
+2025-12-25 13:08:56,085 INFO    MainThread:28352 [wandb_init.py:init():994] communicating run to backend with 90.0 second timeout
+2025-12-25 13:08:56,771 INFO    MainThread:28352 [wandb_init.py:init():1041] starting run threads in backend
+2025-12-25 13:08:56,926 INFO    MainThread:28352 [wandb_run.py:_console_start():2521] atexit reg
+2025-12-25 13:08:56,926 INFO    MainThread:28352 [wandb_run.py:_redirect():2369] redirect: wrap_raw
+2025-12-25 13:08:56,926 INFO    MainThread:28352 [wandb_run.py:_redirect():2438] Wrapping output streams.
+2025-12-25 13:08:56,926 INFO    MainThread:28352 [wandb_run.py:_redirect():2461] Redirects installed.
+2025-12-25 13:08:56,928 INFO    MainThread:28352 [wandb_init.py:init():1081] run started, returning control to user process
+2025-12-25 13:10:06,463 INFO    MainThread:28352 [wandb_run.py:_finish():2287] finishing run orisin-ben-gurion-university-of-the-negev/elliptic-fraud-detection/8z08b8f5
+2025-12-25 13:10:06,465 INFO    MainThread:28352 [wandb_run.py:_atexit_cleanup():2486] got exitcode: 0
+2025-12-25 13:10:06,465 INFO    MainThread:28352 [wandb_run.py:_restore():2468] restore
+2025-12-25 13:10:06,465 INFO    MainThread:28352 [wandb_run.py:_restore():2474] restore done
+2025-12-25 13:10:07,633 INFO    MainThread:28352 [wandb_run.py:_footer_sync_info():3862] logging synced files

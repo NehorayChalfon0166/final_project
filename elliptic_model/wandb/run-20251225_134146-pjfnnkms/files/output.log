@@ -1,0 +1,80 @@
+W&B initialized!
+Run name: graphsage_focal_h128_l3_binary
+View run at: https://wandb.ai/orisin-ben-gurion-university-of-the-negev/elliptic-fraud-detection/runs/pjfnnkms
+
+Trainer initialized
+Strategy: focal
+Device: cpu
+
+================================================================================
+Training
+================================================================================
+Epoch 010: Loss=352.7737, Val Acc=0.9227, Val F1=0.8856
+Epoch 020: Loss=8.2741, Val Acc=0.9227, Val F1=0.8856
+Early stopping at epoch 21
+
+================================================================================
+Final Results
+================================================================================
+
+TRAIN SET:
+  Accuracy:  0.9224
+  Precision: 0.8508
+  Recall:    0.9224
+  F1 Score:  0.8852
+  ROC-AUC:   0.5000
+
+  Class 0 (Illicit):
+    Precision: 0.0000
+    Recall:    0.0000
+    F1 Score:  0.0000
+
+  Class 1 (Licit):
+    Precision: 0.9224
+    Recall:    1.0000
+    F1 Score:  0.9596
+
+VAL SET:
+  Accuracy:  0.9227
+  Precision: 0.8514
+  Recall:    0.9227
+  F1 Score:  0.8856
+  ROC-AUC:   0.5000
+
+  Class 0 (Illicit):
+    Precision: 0.0000
+    Recall:    0.0000
+    F1 Score:  0.0000
+
+  Class 1 (Licit):
+    Precision: 0.9227
+    Recall:    1.0000
+    F1 Score:  0.9598
+
+TEST SET:
+  Accuracy:  0.9211
+  Precision: 0.8484
+  Recall:    0.9211
+  F1 Score:  0.8832
+  ROC-AUC:   0.5000
+
+  Class 0 (Illicit):
+    Precision: 0.0000
+    Recall:    0.0000
+    F1 Score:  0.0000
+
+  Class 1 (Licit):
+    Precision: 0.9211
+    Recall:    1.0000
+    F1 Score:  0.9589
+
+================================================================================
+Test Set Confusion Matrix
+================================================================================
+
+Confusion Matrix:
+Predicted ->
+True ↓         Illicit     Licit
+---------------------------------------
+Illicit        0           5800
+Licit          0           67695

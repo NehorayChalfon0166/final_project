@@ -1,0 +1,1 @@
+{"val/accuracy":0.9226875663319455,"epoch":10,"val/precision":0.8514006235132334,"val/f1":0.8856118582825152,"train/loss":352.7974853515625,"_timestamp":1.766660979209959e+09,"_step":9,"val/recall":0.9226875663319455,"val/illicit_f1":0,"val/licit_f1":0.9597893932317099,"_wandb":{"runtime":69},"_runtime":69,"val/roc_auc":0.7287262601473707}
