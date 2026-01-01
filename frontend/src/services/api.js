@@ -1,0 +1,47 @@
+import axios from 'axios';
+
+const API_BASE_URL = 'http://localhost:8000/api/v1';
+
+const api = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  timeout: 60000, // 60 seconds for wallet analysis
+});
+
+// Health check
+export const checkHealth = async () => {
+  try {
+    const response = await api.get('/health');
+    return response.data;
+  } catch (error) {
+    throw new Error('API is not responding');
+  }
+};
+
+export const ping = async () => {
+  const response = await api.get('/ping');
+  return response.data;
+};
+
+// Wallet analysis
+export const analyzeWallet = async (address, modelPath = '../models/crypto_gnn_model.pt') => {
+  try {
+    const response = await api.get(`/analyze/${address}`, {
+      params: { model_path: modelPath }
+    });
+    return response.data;
+  } catch (error) {
+    if (error.response) {
+      throw new Error(error.response.data.detail || 'Analysis failed');
+    }
+    throw new Error('Network error. Please check if the backend is running.');
+  }
+};
+
+export default {
+  checkHealth,
+  ping,
+  analyzeWallet,
+};
