@@ -1,106 +1,44 @@
-# Cryptocurrency Wallet Risk Classification System
+# Bitcoin Wallet Risk Analyzer
 
-A Graph Neural Network (GNN) based system for detecting illicit cryptocurrency wallets using real-time transaction analysis and behavioral features.
+Graph Neural Network-based Bitcoin wallet risk classification system.
 
-## 🎯 Overview
-
-This project combines:
-- **Real-time wallet analysis** via FastAPI backend
-- **Graph Neural Network** (GAT-based) for risk classification
-- **Transaction graph analysis** from live blockchain data
-- **REAL-CATS & Elliptic++ datasets** for training
-
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 - Python 3.10+
-- Virtual environment recommended
+- Node.js 16+
 
-### Installation
+### Run
 
-```bash
-# Clone the repository
-git clone https://github.com/NehorayChalfon0166/final_project.git
-cd final_project
-
-# Create virtual environment
-python -m venv .venv
-.venv\Scripts\activate  # Windows
-# source .venv/bin/activate  # Linux/Mac
-
-# Install dependencies
-pip install -r requirements.txt
-```
-
-### Run the API Server
-
+**Terminal 1 - Backend:**
 ```bash
 cd Backend
 python main.py
 ```
 
-The API will be available at `http://localhost:8000`
-
-- **Swagger UI**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
-
-## 📊 Features
-
-### 1. Real-time Wallet Analysis
-- Analyze any Bitcoin wallet address
-- Fetch live transaction data from mempool.space
-- Build transaction graphs automatically
-- Generate risk scores using trained GNN model
-
-### 2. Model Training Pipeline
-- Train on REAL-CATS benign/criminal datasets
-- Advanced feature engineering (flow_ratio, fan_ratio)
-- Graph Attention Network (GAT) architecture
-- Support for both Bitcoin and Ethereum
-
-### 3. API Endpoints
-
-#### Wallet Management (CRUD)
-- `GET /api/v1/wallets` - List all stored wallets
-- `GET /api/v1/wallets/{id}` - Get specific wallet
-- `POST /api/v1/wallets` - Create wallet record
-- `POST /api/v1/wallets/validate` - Validate address format
-- `PUT /api/v1/wallets/{id}` - Update wallet
-- `DELETE /api/v1/wallets/{id}` - Delete wallet
-
-#### Wallet Analysis
-- `POST /api/v1/analyze/{address}` - Analyze wallet and get risk score
-  - Fetches live transaction data
-  - Builds graph representation
-  - Runs GNN inference
-  - Optionally saves results to database
-
-#### Health & Status
-- `GET /api/v1/health` - Health check
-- `GET /api/v1/ping` - Ping API
-
-## 🧠 Model Architecture
-
-### CryptoGNN (Graph Attention Network)
-```
-Input Features (8 or 20)
-    ↓
-GATv2Conv Layer 1 (2 heads)
-    ↓
-ReLU + Dropout (0.3)
-    ↓
-GATv2Conv Layer 2 (1 head)
-    ↓
-ReLU
-    ↓
-Linear Classifier (2 classes)
+**Terminal 2 - Frontend:**
+```bash
+cd frontend
+npm install  # first time only
+npm run dev
 ```
 
-### Feature Sets
+### Access
+- Frontend: http://localhost:5173
+- Backend API: http://localhost:8000
+- API Docs: http://localhost:8000/docs
+## Usage
 
-**Training Features (20)** - Used with REAL-CATS dataset:
-- Volume: balance, total_received_USD, total_sent_USD
-- Velocity: lifetime, transaction_number, activity metrics
+1. Enter a Bitcoin wallet address
+2. Click "Analyze"
+3. View risk classification and confidence score
+
+## Features
+
+- Bitcoin wallet analysis
+- Real-time GNN inference
+- Risk classification (Criminal/Benign)
+- Random wallet generation for testing
 - Behavior: transaction_fee, variances, payment patterns
 - Structure: input/output slots
 - Engineered: flow_ratio, fan_ratio

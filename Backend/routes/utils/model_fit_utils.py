@@ -205,9 +205,9 @@ def process_and_save_tensors(wallet_address, df_edges):
         else:
             df_scaled[c] = 0.0
 
-    # D. Standardization (Z-Score)
-    scaler = StandardScaler()
-    known_feats = scaler.fit_transform(df_scaled[NUMERIC_FEATURES])
+    # D. Get features (skip StandardScaler - it doesn't work on single samples)
+    # Just use log-scaled features directly
+    known_feats = df_scaled[NUMERIC_FEATURES].values
     
     # E. Create Matrix
     x_np = np.zeros((len(all_nodes), len(NUMERIC_FEATURES)))
@@ -335,7 +335,9 @@ def analyze_wallet_pipeline(wallet_address: str, model_path: str = None):
                 
                 # Classify based on threshold (0.5)
                 classification = "criminal" if risk_score > 0.5 else "benign"
-                confidence = max(prob_criminal, prob_benign)
+                # Confidence is how far we are from the decision boundary (0.5)
+                # Distance from 0.5, scaled to 0-1 range
+                confidence = abs(risk_score - 0.5) * 2
                 
                 results["prediction"] = probabilities.tolist() if hasattr(probabilities, 'tolist') else [float(p) for p in probabilities]
                 results["risk_score"] = risk_score

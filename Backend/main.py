@@ -2,15 +2,15 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 # Import routers
-from routes import health, wallet, transactions
+from routes import health, wallet
 
 # Import model class so it's available for torch.load
 from routes.utils.model_fit_utils import CryptoGNN
 
 # Initialize FastAPI app
 app = FastAPI(
-    title="Crypto Wallet Analysis API",
-    description="API for analyzing cryptocurrency wallet transactions and risk assessment",
+    title="Bitcoin Wallet Analysis API",
+    description="API for analyzing Bitcoin wallet transactions and risk assessment",
     version="1.0.0"
 )
 
@@ -34,7 +34,6 @@ app.add_middleware(
 # Include routers
 app.include_router(health.router, prefix="/api/v1", tags=["health"])
 app.include_router(wallet.router, prefix="/api/v1", tags=["wallet"])
-app.include_router(transactions.router, prefix="/api/v1", tags=["transactions"])
 
 # Root endpoint
 @app.get("/")

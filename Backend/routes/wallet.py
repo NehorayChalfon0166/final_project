@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional, Dict, List, Any
-import re
+import requests
 from routes.utils.model_fit_utils import analyze_wallet_pipeline
 
 router = APIRouter()
@@ -11,19 +11,12 @@ class WalletAnalysis(BaseModel):
     address: str
 
 
-class GraphData(BaseModel):
-    x_shape: tuple
-    y_shape: tuple
-    edge_index_shape: tuple
-    edge_attr_shape: tuple
-
-
 class AnalysisResult(BaseModel):
     wallet_address: str
     status: str
-    nodes_count: int
-    edges_count: int
-    graph_data: Dict[str, Any]
+    nodes_count: Optional[int] = None
+    edges_count: Optional[int] = None
+    graph_data: Optional[Dict[str, Any]] = None
     classification: Optional[str] = None  # "criminal" or "benign"
     prediction: Optional[List[float]] = None
     risk_score: Optional[float] = None
@@ -32,15 +25,19 @@ class AnalysisResult(BaseModel):
     inference_error: Optional[str] = None
 
 
-def validate_wallet_address(address: str) -> bool:
-    """Validate wallet address format"""
-    if re.match(r'^0x[a-fA-F0-9]{40}$', address):  # Ethereum
-        return True
-    if re.match(r'^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$', address):  # Bitcoin
-        return True
-    if re.match(r'^[a-fA-F0-9]{40,64}$', address):  # Generic hex
-        return True
-    return False
+async def validate_wallet_address(address: str) -> bool:
+    """Validate Bitcoin wallet address using mempool.space API"""
+    try:
+        response = requests.get(
+            f"https://mempool.space/api/v1/validate-address/{address}",
+            timeout=5
+        )
+        if response.status_code == 200:
+            data = response.json()
+            return data.get('isvalid', False)
+        return False
+    except:
+        return False
 
 @router.get("/analyze/{address}", response_model=AnalysisResult)
 async def analyze_wallet(address: str, model_path: Optional[str] = "../models/crypto_gnn_model.pt"):
@@ -54,8 +51,10 @@ async def analyze_wallet(address: str, model_path: Optional[str] = "../models/cr
     Returns:
         Analysis results with graph statistics and predictions (JSON)
     """
-    if not validate_wallet_address(address):
-        raise HTTPException(status_code=400, detail="Invalid wallet address format")
+    # Validate address using mempool.space API
+    is_valid = await validate_wallet_address(address)
+    if not is_valid:
+        raise HTTPException(status_code=400, detail=f"Invalid or inactive Bitcoin address: {address}")
     
     try:
         result = analyze_wallet_pipeline(address, model_path)
