@@ -1,7 +1,16 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(cat:*)",
+      "Bash(claude mcp:*)",
+      "Bash(ls:*)",
+      "Bash(pip show:*)",
+      "Bash(findstr:*)",
+      "Bash(jupyter nbconvert:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nAdd training pipeline using pre-fetched transaction data\n\n- Add train_from_csv.ipynb notebook that trains GNN model from bb_transactions.csv and cb_transactions.csv\n- Add cb_transactions.csv with 45k criminal wallet transactions\n- Update bb_transactions.csv with 65k benign wallet transactions\n- Update trained model \\(89.86% accuracy, 91.33% F1 score\\)\n- Update tensor files with new graph data \\(92k nodes, 104k edges\\)\nEOF\n\\)\")",
+      "Bash(git push:*)"
     ]
   }
 }

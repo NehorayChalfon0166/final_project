@@ -18,7 +18,7 @@ python main.py
 
 **Terminal 2 - Frontend:**
 ```bash
-cd Frontend
+cd frontend
 npm install  # first time only
 npm run dev
 ```
@@ -27,7 +27,6 @@ npm run dev
 - Frontend: http://localhost:5173
 - Backend API: http://localhost:8000
 - API Docs: http://localhost:8000/docs
-
 ## Usage
 
 1. Enter a Bitcoin wallet address
@@ -36,39 +35,38 @@ npm run dev
 
 ## Features
 
-- Bitcoin wallet analysis via mempool.space API
-- Real-time GNN inference using GATv2Conv (Graph Attention Network)
+- Bitcoin wallet analysis
+- Real-time GNN inference
 - Risk classification (Criminal/Benign)
 - Random wallet generation for testing
+- Behavior: transaction_fee, variances, payment patterns
+- Structure: input/output slots
+- Engineered: flow_ratio, fan_ratio
 
-**Model Features (18)** - Behavioral features from REAL-CATS dataset:
-- Balance: `balance`, `total_received_USD`, `total_sent_USD`
-- Transaction fees: `transaction_fee`, `transaction_fee_Variance`
-- Amounts: `max_sent_amount`, `min_sent_amount`
-- Activity: `lifetime`, `activity_w`, `activity_d`, `activity_time`
-- Slots: `total_output_slots`, `total_input_slots`
-- Transactions: `transaction_number`, `payment_transactions`, `receipt_transactions`
-- Variance: `received_Variance_USD`, `sent_Variance_USD`
+**Inference Features (8)** - Used for real-time analysis:
+- Graph centrality: in_degree, out_degree, pagerank
+- Clustering: clustering_coefficient
+- Centrality: betweenness, closeness, eigenvector, harmonic
 
-## Datasets
+## 📚 Datasets
 
 ### REAL-CATS Dataset
 Real World Dataset of Cryptocurrency Addresses with Transaction Profiles
 
 - **50,943 criminal addresses** from real-world reports
 - **102,178 benign addresses** from exchange customers
-- Bitcoin and Ethereum support
+- Bitcoin & Ethereum support
 - Behavioral features included
 
 **Files:**
 - `CB.tsv` - 40,032 criminal Bitcoin addresses
 - `BB.tsv` - 90,176 benign Bitcoin addresses
-- `CE.tsv` - 12,561 criminal Ethereum addresses
+- `CE.tsv` - 12,561 criminal Ethereum addresses  
 - `BE.tsv` - 16,020 benign Ethereum addresses
 
-More details: [README_cats.md](README_cats.md)
+📖 More details: [README_cats.md](README_cats.md)
 
-**Source**: https://github.com/sjdseu/Real-CATS
+**Source**: https://github.com/sjdseu/Real-CATS  
 **Kaggle**: https://www.kaggle.com/datasets/lvd312393/real-cats
 
 ### Elliptic++ Dataset
@@ -76,14 +74,14 @@ Graph Network of Bitcoin Blockchain Transactions
 
 - **203k Bitcoin transactions**
 - **822k wallet addresses**
-- Transaction and actor-level detection
+- Transaction & actor-level detection
 - Temporal features (49 time steps)
 
-More details: [README_eliptic.md](README_eliptic.md)
+📖 More details: [README_eliptic.md](README_eliptic.md)
 
 **Source**: https://github.com/git-disl/EllipticPlusPlus
 
-## Training Your Own Model
+## 🔧 Training Your Own Model
 
 ```bash
 cd Backend
@@ -104,32 +102,32 @@ python train_model.py
 
 **Note**: Fetching transaction data takes time due to API rate limits.
 
-## Project Structure
+## 📁 Project Structure
 
 ```
 final_project/
 ├── Backend/
 │   ├── main.py                      # FastAPI application
+│   ├── train_model.py               # Model training script
 │   ├── routes/
-│   │   ├── wallet.py                # Wallet analysis endpoints
+│   │   ├── wallet.py                # Wallet CRUD + Analysis endpoints
+│   │   ├── transactions.py          # Transaction endpoints
 │   │   ├── health.py                # Health check endpoints
 │   │   └── utils/
-│   │       └── model_fit_utils.py   # Core ML utilities and GNN model
+│   │       └── model_fit_utils.py   # Core ML utilities
 │   └── README.md                    # API documentation
-├── Frontend/
-│   └── src/                         # React/Vite frontend
 ├── models/
 │   ├── model_pipeline.ipynb         # Training notebook
-│   └── crypto_gnn_model.pt          # Trained model
+│   └── crypto_gnn_model.pt          # Trained model (after training)
 ├── eda/
-│   ├── Real-CATS-EDA-Clean.ipynb    # REAL-CATS analysis
-│   └── Elipticpp_EDA.ipynb          # Elliptic++ analysis
+│   ├── Real-CATS-EDA-Clean.ipynb   # REAL-CATS analysis
+│   └── Elipticpp_EDA.ipynb         # Elliptic++ analysis
 ├── Elipticpp_Data/                  # Elliptic++ dataset files
 ├── Real_Cats_data/                  # REAL-CATS dataset files
 └── requirements.txt                 # Python dependencies
 ```
 
-## Example Usage
+## 🔍 Example Usage
 
 ### Analyze a Wallet via API
 
@@ -138,7 +136,7 @@ import requests
 
 # Analyze Bitcoin wallet
 address = "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"
-response = requests.get(
+response = requests.post(
     f"http://localhost:8000/api/v1/analyze/{address}",
     params={"model_path": "../models/crypto_gnn_model.pt"}
 )
@@ -161,16 +159,17 @@ result = analyze_wallet_pipeline(
 print(result)
 ```
 
-## Technologies
+## 🛠️ Technologies
 
 - **FastAPI** - Modern web framework
 - **PyTorch** - Deep learning framework
-- **PyTorch Geometric** - Graph neural networks (GATv2Conv)
+- **PyTorch Geometric** - Graph neural networks
 - **scikit-learn** - Feature preprocessing
 - **pandas** - Data manipulation
+- **NetworkX** - Graph analysis
 - **mempool.space API** - Live blockchain data
 
-## Performance
+## 📊 Performance
 
 The GNN model achieves:
 - Real-time inference (< 5 seconds per wallet)
@@ -178,7 +177,7 @@ The GNN model achieves:
 - Attention-based feature learning
 - Support for both labeled and unlabeled nodes
 
-## Contributing
+## 🤝 Contributing
 
 Contributions are welcome! Areas for improvement:
 - Multi-blockchain support (Ethereum, other chains)
@@ -187,18 +186,18 @@ Contributions are welcome! Areas for improvement:
 - Database integration (PostgreSQL, MongoDB)
 - Caching layer for analyzed wallets
 
-## License
+## 📄 License
 
 This project uses public datasets:
 - REAL-CATS: Check repository for license
 - Elliptic++: Check repository for license
 
-## Contact
+## 📞 Contact
 
 For questions or collaborations:
 - GitHub: [@NehorayChalfon0166](https://github.com/NehorayChalfon0166)
 
-## Acknowledgments
+## 🙏 Acknowledgments
 
 - REAL-CATS Dataset creators
 - Elliptic++ Dataset creators
