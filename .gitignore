@@ -1,6 +1,23 @@
-# Ignore contents of Elipticpp_Data but keep the folder itself
-Elipticpp_Data/*
-!Elipticpp_Data/.gitkeep
+# Ignore data directory (large files)
+data/
+Real_Cats_data/
+Elipticpp_Data/
+
+# Feature outputs (large CSV files)
+src/features/output/*.csv
+src/features/output/feature_columns.txt
+
+# Outputs directory
+outputs/
+
+# Graph data (generated)
+graph_data/
+
+# Handed in presentations
+Handed_in/
+
+# Model training history (generated)
+src/models/test_model_history.json
 
 # Ignore virtual environment
 .venv/
@@ -65,6 +82,8 @@ loglevel.log*
 
 # WandB
 wandb/
+**/wandb/
+elliptic_model/
 
 # Frontend build artifacts
 node_modules/
