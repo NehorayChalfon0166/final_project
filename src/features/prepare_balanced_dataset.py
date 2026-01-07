@@ -26,6 +26,9 @@ OUTPUT_DIR = os.path.join(CURRENT_DIR, 'output')
 # Random seed for reproducibility
 RANDOM_SEED = 42
 
+## cutoff of samples per group per data source
+CUTOFF = 2500
+
 
 def load_feature_matrix(use_log: bool = True) -> pd.DataFrame:
     """Load the conservative feature matrix."""
@@ -100,6 +103,11 @@ def create_balanced_dataset(df: pd.DataFrame, stats: dict) -> pd.DataFrame:
         # Get all criminal/illicit (label = 1)
         df_criminal = df_source[df_source['label'] == 1].copy()
         n_criminal = len(df_criminal)
+        #change
+        if n_criminal > CUTOFF:
+            df_criminal = df_criminal.sample(n=CUTOFF, random_state=RANDOM_SEED)
+            n_criminal = CUTOFF
+        #end change
 
         # Sample benign/licit (label = 0) to match
         df_benign_all = df_source[df_source['label'] == 0]
