@@ -1,251 +1,51 @@
-import pandas as pd
 import numpy as np
 import torch
 import torch.nn.functional as F
-from torch_geometric.nn import GATv2Conv
 import requests
-import time
 import os
-from sklearn.preprocessing import StandardScaler
+import sys
+from typing import List, Dict
+
+# Add src to path for imports
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+from src.graph.graph_builder import EgoGraphBuilder
+from src.graph.config import NUM_NODE_FEATURES, NUM_EDGE_FEATURES
+from src.models.optimal_gnn import OptimalBitcoinGNN
 
 
-# Configuration - Update these based on your dataset
-# These must match the features used during model training (18 features from REAL-CATS)
-NUMERIC_FEATURES = [
-    'balance', 
-    'total_received_USD', 
-    'total_sent_USD', 
-    'transaction_fee', 
-    'transaction_fee_Variance',
-    'max_sent_amount', 
-    'min_sent_amount',
-    'lifetime', 
-    'total_output_slots', 
-    'total_input_slots', 
-    'activity_w', 
-    'activity_d', 
-    'activity_time',
-    'transaction_number',
-    'payment_transactions',
-    'receipt_transactions',
-    'received_Variance_USD',
-    'sent_Variance_USD'
-]
-
-
-# Define the GNN model architecture (must match training)
-class CryptoGNN(torch.nn.Module):
-    def __init__(self, num_node_features, num_edge_features, hidden_channels, num_classes):
-        super().__init__()
-        self.conv1 = GATv2Conv(num_node_features, hidden_channels, heads=2, edge_dim=num_edge_features)
-        self.conv2 = GATv2Conv(hidden_channels * 2, hidden_channels, heads=1, edge_dim=num_edge_features)
-        self.classifier = torch.nn.Linear(hidden_channels, num_classes)
+def fetch_transactions_mempool(wallet_address: str) -> List[Dict]:
+    """
+    Fetch raw transactions for a wallet address from Mempool API.
     
-    def forward(self, x, edge_index, edge_attr):
-        h = self.conv1(x, edge_index, edge_attr=edge_attr)
-        h = h.relu()
-        h = F.dropout(h, p=0.3, training=self.training)
-        h = self.conv2(h, edge_index, edge_attr=edge_attr)
-        h = h.relu()
-        return self.classifier(h)
-
-
-def fetch_edges_mempool_directed(wallet_address):
-    print("2. Fetching DIRECTED Graph Connections (Source: Mempool.space)...")
-    edges_list = []
+    Args:
+        wallet_address: The Bitcoin wallet address
+        
+    Returns:
+        List of raw transaction dictionaries
+    """
+    print(f"   Fetching transactions from Mempool.space for {wallet_address}...")
     headers = {'User-Agent': 'Mozilla/5.0'}
     
-    my_address = wallet_address
-    print(f"   Processing: {my_address}...")
-    
-    # No time window filtering for single address
-    start_ts, end_ts = 0, 9999999999
-
-    # No time window filtering for single address
-    start_ts, end_ts = 0, 9999999999
-
     try:
-        url = f"https://mempool.space/api/address/{my_address}/txs"
-        r = requests.get(url, headers=headers, timeout=10)
+        url = f"https://mempool.space/api/address/{wallet_address}/txs"
+        r = requests.get(url, headers=headers, timeout=30)
         
         if r.status_code == 200:
-            txs = r.json()
-            
-            for tx in txs:
-                # 1. Check Time
-                if not tx.get('status', {}).get('confirmed'): continue
-                tx_time = tx['status']['block_time']
-                if tx_time < start_ts or tx_time > end_ts: continue
-                
-                # 2. Identify My Role (Sender or Receiver?)
-                
-                # --- CHECK OUTGOING (Am I an Input?) ---
-                is_sender = False
-                for inp in tx.get('vin', []):
-                    if inp.get('prevout', {}).get('scriptpubkey_address') == my_address:
-                        is_sender = True
-                        break
-                
-                if is_sender:
-                    # I am the SOURCE. I connect to all Outputs.
-                    for out in tx.get('vout', []):
-                        recipient = out.get('scriptpubkey_address')
-                        amount = out.get('value', 0) # Amount in Satoshis
-                        
-                        if recipient and recipient != my_address:
-                            edges_list.append({
-                                'source': my_address,
-                                'target': recipient,
-                                'weight': amount, 
-                                'timestamp': tx_time,
-                                'direction': 'outgoing'
-                            })
-
-                # --- CHECK INCOMING (Am I an Output?) ---
-                # Note: You can be both sender and receiver (Change address), 
-                # but we excluded self-loops above (recipient != my_address).
-                
-                # Find out how much I received specifically
-                amount_received = 0
-                is_receiver = False
-                for out in tx.get('vout', []):
-                    if out.get('scriptpubkey_address') == my_address:
-                        amount_received += out.get('value', 0)
-                        is_receiver = True
-                
-                if is_receiver:
-                    # I am the TARGET. All Inputs connect to me.
-                    for inp in tx.get('vin', []):
-                        sender = inp.get('prevout', {}).get('scriptpubkey_address')
-                        
-                        if sender and sender != my_address:
-                            edges_list.append({
-                                'source': sender,
-                                'target': my_address,
-                                'weight': amount_received, # We attribute the full receive amount to the link
-                                'timestamp': tx_time,
-                                'direction': 'incoming'
-                            })
-                            
-        time.sleep(1) # Be polite
-        
-    except Exception as e:
-        print(f"       !! Error: {e}")
-
-    df_edges = pd.DataFrame(edges_list)
-    print(f"\n   DONE. Found {len(df_edges)} Directed Edges.")
-    print(df_edges.head())
-    return df_edges
-
-
-def process_and_save_tensors(wallet_address, df_edges):
-    print("\n4. Building Tensors (with Log Scaling)...")
-    
-    # Calculate basic features from transaction data
-    incoming = df_edges[df_edges['direction'] == 'incoming'] if not df_edges.empty else pd.DataFrame()
-    outgoing = df_edges[df_edges['direction'] == 'outgoing'] if not df_edges.empty else pd.DataFrame()
-    
-    total_received = incoming['weight'].sum() if not incoming.empty else 0
-    total_sent = outgoing['weight'].sum() if not outgoing.empty else 0
-    transaction_count = len(df_edges) if not df_edges.empty else 0
-    
-    # Create a single-node dataframe for the wallet address with computed features
-    df_nodes = pd.DataFrame({
-        'address': [wallet_address],
-        'label': [1],  # Default label for the query address
-        'balance': [total_received - total_sent],
-        'total_received_USD': [total_received / 1e8],  # Convert satoshis to BTC
-        'total_sent_USD': [total_sent / 1e8],
-        'transaction_fee': [0],  # Not available from API
-        'transaction_fee_Variance': [0],
-        'max_sent_amount': [outgoing['weight'].max() / 1e8 if not outgoing.empty else 0],
-        'min_sent_amount': [outgoing['weight'].min() / 1e8 if not outgoing.empty else 0],
-        'lifetime': [0],  # Would need earliest/latest timestamps
-        'total_output_slots': [len(outgoing)],
-        'total_input_slots': [len(incoming)],
-        'activity_w': [0],  # Would need weekly data
-        'activity_d': [0],  # Would need daily data
-        'activity_time': [0],
-        'transaction_number': [transaction_count],
-        'payment_transactions': [len(outgoing)],
-        'receipt_transactions': [len(incoming)],
-        'received_Variance_USD': [incoming['weight'].std() / 1e8 if not incoming.empty else 0],
-        'sent_Variance_USD': [outgoing['weight'].std() / 1e8 if not outgoing.empty else 0]
-    })
-    
-    # A. Clean Edges
-    if not df_edges.empty:
-        df_edges = df_edges.drop_duplicates(subset=['source', 'target', 'timestamp'])
-        # Log Scale Edge Weights (Handling potential negatives just in case)
-        w = pd.to_numeric(df_edges['weight'], errors='coerce').fillna(0)
-        df_edges['weight_log'] = np.log1p(np.maximum(0, w))
-    else:
-        df_edges = pd.DataFrame(columns=['source', 'target', 'weight_log'])
-
-    # B. Map Addresses
-    known_addrs = df_nodes['address'].tolist()
-    ghost_addrs = list(set(df_edges['source']).union(set(df_edges['target'])) - set(known_addrs))
-    all_nodes = known_addrs + ghost_addrs
-    addr_map = {addr: i for i, addr in enumerate(all_nodes)}
-    
-    print(f"   Nodes: {len(all_nodes)} ({len(known_addrs)} Known + {len(ghost_addrs)} Ghosts)")
-
-    # C. Build X (Features)
-    print(f"   Scaling {len(NUMERIC_FEATURES)} features...")
-    df_scaled = df_nodes.copy()
-    
-    for c in NUMERIC_FEATURES:
-        if c in df_scaled.columns:
-            # 1. Force Numeric & Fill NA
-            series = pd.to_numeric(df_scaled[c], errors='coerce').fillna(0)
-            
-            # 2. Clip Negatives (Safety) & Log Scale
-            # We use maximum(0, x) because log(-1) is NaN
-            df_scaled[c] = np.log1p(np.maximum(0, series))
+            transactions = r.json()
+            print(f"   Found {len(transactions)} transactions")
+            return transactions
         else:
-            df_scaled[c] = 0.0
-
-    # D. Get features (skip StandardScaler - it doesn't work on single samples)
-    # Just use log-scaled features directly
-    known_feats = df_scaled[NUMERIC_FEATURES].values
-    
-    # E. Create Matrix
-    x_np = np.zeros((len(all_nodes), len(NUMERIC_FEATURES)))
-    x_np[0:len(known_addrs)] = known_feats
-    x = torch.tensor(x_np, dtype=torch.float)
-    
-    # F. Labels
-    y_np = np.full(len(all_nodes), -1)
-    y_np[0:len(known_addrs)] = df_nodes['label'].values
-    y = torch.tensor(y_np, dtype=torch.long)
-    
-    # G. Edges
-    if not df_edges.empty:
-        src = df_edges['source'].map(addr_map).values
-        dst = df_edges['target'].map(addr_map).values
-        
-        mask = (~np.isnan(src)) & (~np.isnan(dst))
-        edge_index = torch.tensor([src[mask], dst[mask]], dtype=torch.long)
-        edge_attr = torch.tensor(df_edges['weight_log'].to_numpy()[mask].reshape(-1, 1), dtype=torch.float)
-    else:
-        edge_index = torch.empty((2, 0), dtype=torch.long)
-        edge_attr = torch.empty((0, 1), dtype=torch.float)
-
-    # Return preprocessed tensors and metadata
-    print(f"   Preprocessed Tensors. X shape: {x.shape}")
-    return {
-        'x': x,
-        'y': y,
-        'edge_index': edge_index,
-        'edge_attr': edge_attr,
-        'addr_map': addr_map,
-        'all_nodes': all_nodes
-    }
+            print(f"   API returned status {r.status_code}")
+            return []
+            
+    except Exception as e:
+        print(f"   Error fetching transactions: {e}")
+        return []
 
 
 def analyze_wallet_pipeline(wallet_address: str, model_path: str = None):
     """
-    Complete pipeline: Fetch edges, preprocess, and run model inference.
+    Complete pipeline: Fetch transactions, build graph using EgoGraphBuilder, and run model inference.
     
     Args:
         wallet_address: The wallet address to analyze
@@ -256,11 +56,11 @@ def analyze_wallet_pipeline(wallet_address: str, model_path: str = None):
     """
     print(f"\n[1/4] Starting analysis for wallet: {wallet_address}")
     
-    # Fetch edges from mempool
-    print(f"[2/4] Fetching transaction graph...")
-    df_edges = fetch_edges_mempool_directed(wallet_address)
+    # Fetch transactions from mempool
+    print(f"[2/4] Fetching transactions...")
+    transactions = fetch_transactions_mempool(wallet_address)
     
-    if df_edges.empty:
+    if not transactions:
         print(f"[!] No transactions found for wallet: {wallet_address}")
         return {
             "wallet_address": wallet_address,
@@ -268,28 +68,33 @@ def analyze_wallet_pipeline(wallet_address: str, model_path: str = None):
             "message": "No transaction data found for this wallet"
         }
     
-    # Preprocess and create tensors
-    print(f"[3/4] Preprocessing graph data...")
-    graph_data = process_and_save_tensors(wallet_address, df_edges)
+    # Build ego-graph using EgoGraphBuilder
+    print(f"[3/4] Building ego-graph...")
+    graph_builder = EgoGraphBuilder()
+    graph_data = graph_builder.build_graph_for_new_address(
+        address=wallet_address,
+        transactions=transactions,
+        label=-1  # Unknown label
+    )
     
-    # Run inference if model provided
+    # Prepare results
     results = {
         "wallet_address": wallet_address,
         "status": "success",
-        "nodes_count": len(graph_data['all_nodes']),
-        "edges_count": graph_data['edge_index'].shape[1],
+        "nodes_count": graph_data.num_nodes,
+        "edges_count": graph_data.num_edges,
+        "ghost_nodes": graph_data.num_ghost_nodes,
         "graph_data": {
-            "x_shape": graph_data['x'].shape,
-            "y_shape": graph_data['y'].shape,
-            "edge_index_shape": graph_data['edge_index'].shape,
-            "edge_attr_shape": graph_data['edge_attr'].shape
+            "x_shape": list(graph_data.x.shape),
+            "y_shape": list(graph_data.y.shape),
+            "edge_index_shape": list(graph_data.edge_index.shape),
+            "edge_attr_shape": list(graph_data.edge_attr.shape)
         }
     }
     
     if model_path:
         print(f"[4/4] Running inference...")
         try:
-            import os
             # Check if model file exists
             if not os.path.exists(model_path):
                 # Try relative to Backend directory
@@ -302,19 +107,28 @@ def analyze_wallet_pipeline(wallet_address: str, model_path: str = None):
             print(f"   Loading model from: {model_path}")
             device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
             
-            # Load model with weights_only=False to allow custom CryptoGNN class
-            model = torch.load(model_path, map_location=device, weights_only=False)
+            # Create model instance with correct architecture
+            model = OptimalBitcoinGNN(
+                num_node_features=NUM_NODE_FEATURES,
+                num_edge_features=NUM_EDGE_FEATURES
+            )
+            
+            # Load state dict (weights)
+            state_dict = torch.load(model_path, map_location=device, weights_only=True)
+            model.load_state_dict(state_dict)
+            model.to(device)
             model.eval()
             
             with torch.no_grad():
-                x = graph_data['x'].to(device)
-                edge_index = graph_data['edge_index'].to(device)
-                edge_attr = graph_data['edge_attr'].to(device) if graph_data['edge_attr'].numel() > 0 else None
+                x = graph_data.x.to(device)
+                edge_index = graph_data.edge_index.to(device)
+                edge_attr = graph_data.edge_attr.to(device) if graph_data.edge_attr.numel() > 0 else None
                 
-                if edge_attr is not None:
-                    output = model(x, edge_index, edge_attr)
-                else:
-                    output = model(x, edge_index)
+                # Create batch tensor (all nodes belong to batch 0)
+                batch = torch.zeros(graph_data.num_nodes, dtype=torch.long, device=device)
+                
+                # Model expects batch parameter
+                output = model(x, edge_index, edge_attr, batch)
                 
                 # Get prediction for the queried wallet (node 0)
                 logits = output[0].cpu()
@@ -336,7 +150,6 @@ def analyze_wallet_pipeline(wallet_address: str, model_path: str = None):
                 # Classify based on threshold (0.5)
                 classification = "criminal" if risk_score > 0.5 else "benign"
                 # Confidence is how far we are from the decision boundary (0.5)
-                # Distance from 0.5, scaled to 0-1 range
                 confidence = abs(risk_score - 0.5) * 2
                 
                 results["prediction"] = probabilities.tolist() if hasattr(probabilities, 'tolist') else [float(p) for p in probabilities]

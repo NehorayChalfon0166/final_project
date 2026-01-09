@@ -160,6 +160,18 @@ function WalletAnalysis() {
               </div>
             </div>
 
+            {result.ghost_nodes !== undefined && result.ghost_nodes !== null && (
+              <div className="stat-card">
+                <div className="stat-icon orange">
+                  <Network size={24} />
+                </div>
+                <div className="stat-content">
+                  <div className="stat-label">Neighbors</div>
+                  <div className="stat-value">{result.ghost_nodes}</div>
+                </div>
+              </div>
+            )}
+
             {result.risk_score !== null && (
               <div className="stat-card">
                 <div className={`stat-icon ${getRiskColor(result.classification)}`}>

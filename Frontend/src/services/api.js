@@ -26,7 +26,7 @@ export const ping = async () => {
 };
 
 // Wallet analysis
-export const analyzeWallet = async (address, modelPath = '../models/crypto_gnn_model.pt') => {
+export const analyzeWallet = async (address, modelPath = '../outputs/gnn_model.pt') => {
   try {
     const response = await api.get(`/analyze/${address}`, {
       params: { model_path: modelPath }

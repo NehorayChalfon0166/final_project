@@ -1,11 +1,15 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
 # Import routers
 from routes import health, wallet
 
 # Import model class so it's available for torch.load
-from routes.utils.model_fit_utils import CryptoGNN
+from src.models.optimal_gnn import OptimalBitcoinGNN
 
 # Initialize FastAPI app
 app = FastAPI(

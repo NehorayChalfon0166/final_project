@@ -256,3 +256,170 @@ class EgoGraphBuilder:
         data.num_edges = 0
 
         return data
+
+    def compute_features_from_transactions(
+        self,
+        address: str,
+        transactions: List[Dict]
+    ) -> np.ndarray:
+        """
+        Compute wallet features from raw transaction data for addresses NOT in the dataset.
+        
+        Args:
+            address: The wallet address
+            transactions: Raw transaction data from mempool API
+            
+        Returns:
+            features: numpy array of shape (NUM_NODE_FEATURES,) with log-scaled features
+        """
+        # Initialize counters
+        total_sent = 0
+        total_received = 0
+        total_fees = 0
+        num_send_txs = 0
+        num_receive_txs = 0
+        sent_amounts = []
+        received_amounts = []
+        tx_times = []
+        
+        for tx in transactions:
+            if not tx.get('status', {}).get('confirmed', False):
+                continue
+                
+            tx_time = tx['status'].get('block_time', 0)
+            if tx_time > 0:
+                tx_times.append(tx_time)
+            
+            # Check if address is sender
+            is_sender = False
+            for inp in tx.get('vin', []):
+                prevout = inp.get('prevout') or {}
+                if prevout.get('scriptpubkey_address') == address:
+                    is_sender = True
+                    break
+            
+            # Check if address is receiver
+            received_in_tx = 0
+            for out in tx.get('vout', []):
+                if out.get('scriptpubkey_address') == address:
+                    received_in_tx += out.get('value', 0)
+            
+            if is_sender:
+                num_send_txs += 1
+                # Sum sent amounts (outputs not going back to self)
+                for out in tx.get('vout', []):
+                    if out.get('scriptpubkey_address') != address:
+                        amount = out.get('value', 0)
+                        total_sent += amount
+                        if amount > 0:
+                            sent_amounts.append(amount)
+                # Add fee
+                total_fees += tx.get('fee', 0)
+            
+            if received_in_tx > 0:
+                num_receive_txs += 1
+                total_received += received_in_tx
+                received_amounts.append(received_in_tx)
+        
+        # Calculate derived features
+        total_txs = num_send_txs + num_receive_txs
+        
+        # Lifetime
+        if len(tx_times) >= 2:
+            lifetime_seconds = max(tx_times) - min(tx_times)
+        else:
+            lifetime_seconds = 0
+        
+        # Activity rate
+        activity_rate = total_txs / max(lifetime_seconds, 1)
+        
+        # Send/receive ratio
+        send_receive_ratio = total_sent / max(total_received, 1)
+        
+        # In/out balance
+        in_out_balance = num_receive_txs / max(num_send_txs, 1)
+        
+        # Fee per tx
+        fee_per_tx = total_fees / max(total_txs, 1)
+        
+        # Blocks between txs mean (approx: 1 block ≈ 600 seconds)
+        if len(tx_times) >= 2:
+            tx_times_sorted = sorted(tx_times)
+            intervals = [tx_times_sorted[i+1] - tx_times_sorted[i] for i in range(len(tx_times_sorted)-1)]
+            blocks_btwn_txs_mean = np.mean(intervals) / 600
+        else:
+            blocks_btwn_txs_mean = 0
+        
+        # Fee share mean
+        total_transacted = total_sent + total_received
+        fee_share_mean = total_fees / max(total_transacted, 1)
+        
+        # Avg tx size
+        avg_tx_size = total_transacted / max(total_txs, 1)
+        
+        # Tx size range
+        all_amounts = sent_amounts + received_amounts
+        if all_amounts:
+            tx_size_range = max(all_amounts) - min(all_amounts)
+        else:
+            tx_size_range = 0
+        
+        # Max sent/received
+        max_sent = max(sent_amounts) if sent_amounts else 0
+        max_received = max(received_amounts) if received_amounts else 0
+        
+        # Build feature vector (in same order as FEATURE_COLUMNS)
+        features_raw = np.array([
+            lifetime_seconds,       # lifetime_seconds_log
+            activity_rate,          # activity_rate_log
+            in_out_balance,         # in_out_balance_log
+            total_txs,              # total_txs_log
+            send_receive_ratio,     # send_receive_ratio_log
+            fee_per_tx,             # fee_per_tx_log
+            blocks_btwn_txs_mean,   # blocks_btwn_txs_mean_log
+            fee_share_mean,         # fee_share_mean_log
+            avg_tx_size,            # avg_tx_size_log
+            tx_size_range,          # tx_size_range_log
+            max_sent,               # max_sent_log
+            max_received,           # max_received_log
+        ], dtype=np.float32)
+        
+        # Apply log1p transformation (matching dataset preprocessing)
+        features_log = np.log1p(np.abs(features_raw)).astype(np.float32)
+        
+        return features_log
+
+    def build_graph_for_new_address(
+        self,
+        address: str,
+        transactions: List[Dict],
+        label: int = -1
+    ) -> Data:
+        """
+        Build ego-graph for an address NOT in the dataset.
+        Features are computed from raw transaction data.
+        
+        Args:
+            address: The wallet address
+            transactions: Raw transaction data from mempool API
+            label: Label (-1 for unknown/unlabeled)
+            
+        Returns:
+            PyG Data object
+        """
+        # Compute features from transactions
+        features = self.compute_features_from_transactions(address, transactions)
+        
+        if transactions:
+            return self.build_ego_graph(
+                center_address=address,
+                center_features=features,
+                center_label=label,
+                transactions=transactions
+            )
+        else:
+            return self.build_empty_graph(
+                center_address=address,
+                center_features=features,
+                center_label=label
+            )
