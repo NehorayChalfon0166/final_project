@@ -1,0 +1,17 @@
+{
+  "feature_importance": {
+    "fee_per_tx_log": 0.4789372551254053,
+    "fee_share_mean_log": 0.20741983382042634,
+    "in_out_balance_log": 0.05533107712571204,
+    "tx_size_range_log": 0.05471579602895746,
+    "send_receive_ratio_log": 0.04927329334668825,
+    "total_txs_log": 0.03495077355762689,
+    "max_sent_log": 0.03168246117106926,
+    "avg_tx_size_log": 0.03040876711638434,
+    "max_received_log": 0.02622907358186193,
+    "blocks_btwn_txs_mean_log": 0.013706688558951125,
+    "activity_rate_log": 0.010619259316690291,
+    "lifetime_seconds_log": 0.006725721250226807
+  },
+  "timestamp": "2026-01-07T19:37:59.689732"
+}

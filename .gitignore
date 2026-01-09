@@ -8,7 +8,7 @@ src/features/output/*.csv
 src/features/output/feature_columns.txt
 
 # Outputs directory
-outputs/
+# outputs/
 
 # Graph data (generated)
 graph_data/
