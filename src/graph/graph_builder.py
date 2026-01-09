@@ -88,7 +88,7 @@ class EgoGraphBuilder:
             # Check if center is sender (appears in inputs)
             is_sender = False
             for inp in tx.get('vin', []):
-                prevout = inp.get('prevout', {})
+                prevout = inp.get('prevout') or {} #for if its mined then there is no sender
                 if prevout.get('scriptpubkey_address') == center_address:
                     is_sender = True
                     break
@@ -119,7 +119,7 @@ class EgoGraphBuilder:
             # Process incoming edges (senders -> center)
             if is_receiver and received_amount > 0:
                 for inp in tx.get('vin', []):
-                    prevout = inp.get('prevout', {})
+                    prevout = inp.get('prevout') or {} #for if its mined then there is no sender
                     sender = prevout.get('scriptpubkey_address')
 
                     if sender and sender != center_address:

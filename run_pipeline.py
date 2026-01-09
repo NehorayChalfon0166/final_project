@@ -17,6 +17,7 @@ Usage:
     python run_pipeline.py --baseline         # Only XGBoost baseline
     python run_pipeline.py --train            # Only GNN training
     python run_pipeline.py --evaluate         # Only evaluation & comparison
+    python run_pipeline.py --graphs --retry-failed  # Retry failed graph builds
 """
 import os
 import json
@@ -24,6 +25,7 @@ import argparse
 import logging
 import asyncio
 from datetime import datetime
+import numpy as np
 
 logging.basicConfig(
     level=logging.INFO,
@@ -33,6 +35,18 @@ logger = logging.getLogger(__name__)
 
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 OUTPUTS_DIR = os.path.join(PROJECT_ROOT, 'outputs')
+
+
+# class to handle the conversion of numpy types for JSON
+class NpEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return super(NpEncoder, self).default(obj)
 
 
 def step_prepare_data():
@@ -67,7 +81,7 @@ def step_prepare_data():
     return False
 
 
-def step_build_graphs(max_addresses: int = None, split: str = 'both'):
+def step_build_graphs(max_addresses: int = None, split: str = 'both', retry_failed: bool = False):
     """Step 2: Build ego-graphs using mempool.space API."""
     logger.info("=" * 60)
     logger.info("STEP 2: Building Ego-Graphs")
@@ -81,13 +95,19 @@ def step_build_graphs(max_addresses: int = None, split: str = 'both'):
         logger.info(f"\nProcessing {s} split...")
         pipeline = GraphConstructionPipeline(s)
 
+        # Pass the retry_failed flag to the pipeline
+        if retry_failed:
+            logger.info("Retrying failed addresses only...")
+            
         pending = pipeline.get_pending_addresses()
         logger.info(f"  Pending addresses: {len(pending):,}")
 
-        if pending:
+        # If we have pending addresses OR we want to retry failed ones, run it
+        if pending or retry_failed:
             asyncio.run(pipeline.run(
                 max_addresses=max_addresses,
-                resume=True
+                resume=True,
+                retry_failed=retry_failed  # <--- Passed down here
             ))
 
 
@@ -202,7 +222,7 @@ def step_train_gnn(epochs: int = 100, batch_size: int = 64):
             'best_epoch': best_epoch,
             'epochs_trained': epoch + 1,
             'timestamp': datetime.now().isoformat()
-        }, f, indent=2)
+        }, f, indent=2, cls=NpEncoder)  # <--- Fixed: Added cls=NpEncoder
 
     logger.info(f"\nGNN Final Results:")
     logger.info(f"  Best Epoch: {best_epoch}")
@@ -366,7 +386,8 @@ def step_evaluate():
 
     eval_path = os.path.join(eval_dir, 'evaluation_results.json')
     with open(eval_path, 'w') as f:
-        json.dump(eval_results, f, indent=2)
+        # Also use NpEncoder here to be safe
+        json.dump(eval_results, f, indent=2, cls=NpEncoder)
 
     logger.info(f"\nEvaluation results saved to: {eval_path}")
 
@@ -423,7 +444,7 @@ def step_evaluate():
             json.dump({
                 'feature_importance': importance,
                 'timestamp': datetime.now().isoformat()
-            }, f, indent=2)
+            }, f, indent=2, cls=NpEncoder)
 
         logger.info(f"Feature importance saved to: {interp_path}")
 
@@ -441,6 +462,9 @@ def main():
     parser.add_argument('--baseline', action='store_true', help='Step 3: Train XGBoost')
     parser.add_argument('--train', action='store_true', help='Step 4: Train GNN')
     parser.add_argument('--evaluate', action='store_true', help='Step 5: Evaluate & compare')
+    
+    # New flag for retrying failed graphs
+    parser.add_argument('--retry-failed', action='store_true', help='Retry building failed graphs')
 
     # Deprecated alias
     parser.add_argument('--compare', action='store_true', help='(Deprecated: use --evaluate)')
@@ -476,7 +500,11 @@ def main():
             step_prepare_data()
 
         if args.all or args.graphs:
-            step_build_graphs(max_addresses=args.max_graphs, split=args.split)
+            step_build_graphs(
+                max_addresses=args.max_graphs, 
+                split=args.split, 
+                retry_failed=args.retry_failed # <--- Passed here
+            )
 
         if args.all or args.baseline:
             step_train_baseline()

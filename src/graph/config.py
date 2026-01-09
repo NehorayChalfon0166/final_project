@@ -27,12 +27,14 @@ METADATA_DIR = os.path.join(GRAPH_DATA_DIR, 'metadata')
 # API CONFIGURATION
 # =============================================================================
 
-MEMPOOL_API_BASE = "https://mempool.space/api"
-MEMPOOL_RATE_LIMIT = 10      # requests per second
-CONCURRENT_REQUESTS = 8      # parallel async requests
-REQUEST_TIMEOUT = 15         # seconds
-MAX_RETRIES = 3
-RETRY_DELAY = 2.0            # seconds between retries
+# Switched to Bisq instance to bypass previous rate limits
+MEMPOOL_API_BASE = "https://mempool.emzy.de/api"
+
+MEMPOOL_RATE_LIMIT = 2.0     # 2 requests per second
+CONCURRENT_REQUESTS = 1      # Sequential processing (Crucial for stability)
+REQUEST_TIMEOUT = 30         # 30 seconds
+MAX_RETRIES = 5              # Retry up to 5 times
+RETRY_DELAY = 5.0            # Wait 5 seconds between retries
 
 
 # =============================================================================
