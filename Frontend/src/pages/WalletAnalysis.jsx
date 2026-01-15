@@ -1,12 +1,16 @@
 import { useState } from 'react';
-import { Search, Loader, AlertCircle, CheckCircle, XCircle, TrendingUp, Network, Activity } from 'lucide-react';
-import { analyzeWallet } from '../services/api';
+import { Search, Loader, AlertCircle, CheckCircle, XCircle, TrendingUp, Network, Activity, ChevronDown, ChevronUp, ExternalLink, ArrowRightLeft, Wallet, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
+import { analyzeWallet, getWalletInfo } from '../services/api';
 
 function WalletAnalysis() {
   const [address, setAddress] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
+  const [walletInfo, setWalletInfo] = useState(null);
+  const [loadingTxns, setLoadingTxns] = useState(false);
   const [error, setError] = useState('');
+  const [expandedTx, setExpandedTx] = useState(null);
+  const [showTransactions, setShowTransactions] = useState(false);
 
   const handleAnalyze = async (e) => {
     e.preventDefault();
@@ -19,10 +23,17 @@ function WalletAnalysis() {
     setLoading(true);
     setError('');
     setResult(null);
+    setWalletInfo(null);
+    setShowTransactions(false);
 
     try {
-      const data = await analyzeWallet(address.trim());
-      setResult(data);
+      // Fetch both analysis and transaction info in parallel
+      const [analysisData, infoData] = await Promise.all([
+        analyzeWallet(address.trim()),
+        getWalletInfo(address.trim()).catch(() => null)
+      ]);
+      setResult(analysisData);
+      setWalletInfo(infoData);
     } catch (err) {
       setError(err.message || 'Failed to analyze wallet');
     } finally {
@@ -39,6 +50,29 @@ function WalletAnalysis() {
     if (riskScore >= 0.7) return 'High';
     if (riskScore >= 0.4) return 'Medium';
     return 'Low';
+  };
+
+  const formatSatoshis = (sats) => {
+    if (sats === null || sats === undefined) return 'N/A';
+    if (Math.abs(sats) >= 100000000) {
+      return `${(sats / 100000000).toFixed(8)} BTC`;
+    }
+    return `${sats.toLocaleString()} sats`;
+  };
+
+  const formatBTC = (btc) => {
+    if (btc === null || btc === undefined) return 'N/A';
+    return `${btc.toFixed(8)} BTC`;
+  };
+
+  const formatDate = (timestamp) => {
+    return new Date(timestamp * 1000).toLocaleString();
+  };
+
+  const truncateAddress = (addr, chars = 8) => {
+    if (!addr) return '';
+    if (addr.length <= chars * 2) return addr;
+    return `${addr.slice(0, chars)}...${addr.slice(-chars)}`;
   };
 
   const generateRandomWallet = () => {
@@ -201,6 +235,43 @@ function WalletAnalysis() {
             )}
           </div>
 
+          {/* Wallet Balance Section */}
+          {walletInfo && (
+            <div className="balance-card">
+              <div className="balance-header">
+                <Wallet size={24} />
+                <h3>Wallet Balance</h3>
+              </div>
+              <div className="balance-grid">
+                <div className="balance-item main-balance">
+                  <div className="balance-label">Current Balance</div>
+                  <div className="balance-value btc">{formatBTC(walletInfo.balance_btc)}</div>
+                  <div className="balance-subvalue">{walletInfo.balance_sats?.toLocaleString()} sats</div>
+                </div>
+                <div className="balance-item received">
+                  <div className="balance-icon">
+                    <ArrowDownLeft size={20} />
+                  </div>
+                  <div className="balance-content">
+                    <div className="balance-label">Total Received</div>
+                    <div className="balance-value">{formatSatoshis(walletInfo.total_received_sats)}</div>
+                    <div className="balance-count">{walletInfo.funded_txo_count} inputs</div>
+                  </div>
+                </div>
+                <div className="balance-item sent">
+                  <div className="balance-icon">
+                    <ArrowUpRight size={20} />
+                  </div>
+                  <div className="balance-content">
+                    <div className="balance-label">Total Sent</div>
+                    <div className="balance-value">{formatSatoshis(walletInfo.total_sent_sats)}</div>
+                    <div className="balance-count">{walletInfo.spent_txo_count} outputs</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {result.classification && (
             <div className={`classification-card ${getRiskColor(result.classification)}`}>
               <div className="classification-header">
@@ -259,6 +330,135 @@ function WalletAnalysis() {
               </div>
             )}
           </div>
+
+          {/* Transactions Section */}
+          {walletInfo && walletInfo.transactions && walletInfo.transactions.length > 0 && (
+            <div className="transactions-card">
+              <div 
+                className="transactions-header"
+                onClick={() => setShowTransactions(!showTransactions)}
+              >
+                <div className="transactions-title">
+                  <ArrowRightLeft size={24} />
+                  <h3>Transactions ({walletInfo.transaction_count})</h3>
+                </div>
+                <button className="toggle-btn">
+                  {showTransactions ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                </button>
+              </div>
+
+              {showTransactions && (
+                <div className="transactions-list">
+                  {walletInfo.transactions.slice(0, 20).map((tx, index) => (
+                    <div key={tx.txid} className="transaction-item">
+                      <div 
+                        className="transaction-summary"
+                        onClick={() => setExpandedTx(expandedTx === tx.txid ? null : tx.txid)}
+                      >
+                        <div className="tx-main-info">
+                          <div className="tx-id">
+                            <code>{truncateAddress(tx.txid, 12)}</code>
+                            <a 
+                              href={`https://mempool.space/tx/${tx.txid}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="external-link"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <ExternalLink size={14} />
+                            </a>
+                          </div>
+                          <div className="tx-status">
+                            {tx.status?.confirmed ? (
+                              <span className="confirmed">
+                                <CheckCircle size={14} />
+                                Block {tx.status.block_height}
+                              </span>
+                            ) : (
+                              <span className="pending">
+                                <Loader size={14} />
+                                Pending
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="tx-details-row">
+                          <span className="tx-fee">Fee: {formatSatoshis(tx.fee)}</span>
+                          <span className="tx-size">{tx.size} bytes</span>
+                          {tx.status?.block_time && (
+                            <span className="tx-time">{formatDate(tx.status.block_time)}</span>
+                          )}
+                        </div>
+                        <button className="expand-btn">
+                          {expandedTx === tx.txid ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                        </button>
+                      </div>
+
+                      {expandedTx === tx.txid && (
+                        <div className="transaction-expanded">
+                          <div className="tx-io-container">
+                            <div className="tx-inputs">
+                              <h4>Inputs ({tx.vin?.length || 0})</h4>
+                              {tx.vin?.slice(0, 5).map((input, i) => (
+                                <div key={i} className="tx-io-item">
+                                  {input.is_coinbase ? (
+                                    <span className="coinbase">Coinbase</span>
+                                  ) : (
+                                    <>
+                                      <code>{truncateAddress(input.prevout?.scriptpubkey_address, 10)}</code>
+                                      <span className="amount">{formatSatoshis(input.prevout?.value || 0)}</span>
+                                    </>
+                                  )}
+                                </div>
+                              ))}
+                              {tx.vin?.length > 5 && (
+                                <div className="more-items">+{tx.vin.length - 5} more inputs</div>
+                              )}
+                            </div>
+                            <div className="tx-arrow">→</div>
+                            <div className="tx-outputs">
+                              <h4>Outputs ({tx.vout?.length || 0})</h4>
+                              {tx.vout?.slice(0, 5).map((output, i) => (
+                                <div key={i} className="tx-io-item">
+                                  {output.scriptpubkey_type === 'op_return' ? (
+                                    <span className="op-return">OP_RETURN</span>
+                                  ) : (
+                                    <>
+                                      <code 
+                                        className={output.scriptpubkey_address === result.wallet_address ? 'highlight' : ''}
+                                      >
+                                        {truncateAddress(output.scriptpubkey_address, 10)}
+                                      </code>
+                                      <span className="amount">{formatSatoshis(output.value)}</span>
+                                    </>
+                                  )}
+                                </div>
+                              ))}
+                              {tx.vout?.length > 5 && (
+                                <div className="more-items">+{tx.vout.length - 5} more outputs</div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  {walletInfo.transactions.length > 20 && (
+                    <div className="more-transactions">
+                      Showing 20 of {walletInfo.transaction_count} transactions.
+                      <a 
+                        href={`https://mempool.space/address/${result.wallet_address}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        View all on Mempool.space <ExternalLink size={14} />
+                      </a>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional, Dict, List, Any
 import requests
-from routes.utils.model_fit_utils import analyze_wallet_pipeline
+from routes.utils.model_fit_utils import analyze_wallet_pipeline, fetch_transactions_mempool
 
 router = APIRouter()
 
@@ -24,6 +24,33 @@ class AnalysisResult(BaseModel):
     confidence: Optional[float] = None
     message: Optional[str] = None
     inference_error: Optional[str] = None
+
+
+class WalletInfoResult(BaseModel):
+    address: str
+    transaction_count: int
+    transactions: List[Dict[str, Any]]
+    balance_sats: Optional[int] = None
+    balance_btc: Optional[float] = None
+    total_received_sats: Optional[int] = None
+    total_sent_sats: Optional[int] = None
+    funded_txo_count: Optional[int] = None
+    spent_txo_count: Optional[int] = None
+
+
+def fetch_address_stats(address: str) -> Dict[str, Any]:
+    """Fetch address statistics from mempool.space API"""
+    try:
+        response = requests.get(
+            f"https://mempool.space/api/address/{address}",
+            headers={'User-Agent': 'Mozilla/5.0'},
+            timeout=10
+        )
+        if response.status_code == 200:
+            return response.json()
+        return {}
+    except:
+        return {}
 
 
 async def validate_wallet_address(address: str) -> bool:
@@ -62,3 +89,51 @@ async def analyze_wallet(address: str, model_path: Optional[str] = "../outputs/g
         return AnalysisResult(**result)
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Analysis failed: {str(e)}")
+    
+
+@router.get("/info/{address}")
+async def get_wallet_info(address: str):
+    """
+    Fetch transaction info for a wallet address.
+    
+    Args:
+        address: Wallet address to fetch transactions for
+    
+    Returns:
+        Wallet info with transaction list (JSON)
+    """
+    # Validate address using mempool.space API
+    is_valid = await validate_wallet_address(address)
+    if not is_valid:
+        raise HTTPException(status_code=400, detail=f"Invalid or inactive Bitcoin address: {address}")
+    
+    try:
+        # Fetch transactions and address stats
+        transactions = fetch_transactions_mempool(address)
+        stats = fetch_address_stats(address)
+        
+        # Calculate balance from chain_stats and mempool_stats
+        chain_stats = stats.get('chain_stats', {})
+        mempool_stats = stats.get('mempool_stats', {})
+        
+        # Funded (received) and spent amounts
+        funded_sats = chain_stats.get('funded_txo_sum', 0) + mempool_stats.get('funded_txo_sum', 0)
+        spent_sats = chain_stats.get('spent_txo_sum', 0) + mempool_stats.get('spent_txo_sum', 0)
+        balance_sats = funded_sats - spent_sats
+        
+        funded_txo_count = chain_stats.get('funded_txo_count', 0) + mempool_stats.get('funded_txo_count', 0)
+        spent_txo_count = chain_stats.get('spent_txo_count', 0) + mempool_stats.get('spent_txo_count', 0)
+        
+        return WalletInfoResult(
+            address=address,
+            transaction_count=len(transactions),
+            transactions=transactions,
+            balance_sats=balance_sats,
+            balance_btc=balance_sats / 100_000_000,
+            total_received_sats=funded_sats,
+            total_sent_sats=spent_sats,
+            funded_txo_count=funded_txo_count,
+            spent_txo_count=spent_txo_count
+        )
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to fetch transactions: {str(e)}")

@@ -95,16 +95,29 @@ def analyze_wallet_pipeline(wallet_address: str, model_path: str = None):
     if model_path:
         print(f"[4/4] Running inference...")
         try:
-            # Check if model file exists
-            if not os.path.exists(model_path):
-                # Try relative to Backend directory
-                alt_path = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'models', 'crypto_gnn_model.pt')
-                if os.path.exists(alt_path):
-                    model_path = alt_path
-                else:
-                    raise FileNotFoundError(f"Model not found at {model_path} or {alt_path}")
+            # Resolve model path - try multiple locations
+            resolved_path = None
             
-            print(f"   Loading model from: {model_path}")
+            # Get project root directory (3 levels up from this file)
+            project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+            
+            # List of paths to try
+            paths_to_try = [
+                model_path,  # Original path
+                os.path.join(project_root, 'outputs', 'gnn_model.pt'),  # Project root outputs
+                os.path.join(project_root, 'outputs', 'gnn_checkpoint.pt'),  # Checkpoint
+                os.path.abspath(model_path),  # Absolute version of original
+            ]
+            
+            for path in paths_to_try:
+                if os.path.exists(path):
+                    resolved_path = path
+                    break
+            
+            if not resolved_path:
+                raise FileNotFoundError(f"Model not found. Tried: {paths_to_try}")
+            
+            print(f"   Loading model from: {resolved_path}")
             device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
             
             # Create model instance with correct architecture
@@ -114,7 +127,7 @@ def analyze_wallet_pipeline(wallet_address: str, model_path: str = None):
             )
             
             # Load state dict (weights)
-            state_dict = torch.load(model_path, map_location=device, weights_only=True)
+            state_dict = torch.load(resolved_path, map_location=device, weights_only=True)
             model.load_state_dict(state_dict)
             model.to(device)
             model.eval()

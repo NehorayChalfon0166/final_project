@@ -40,8 +40,22 @@ export const analyzeWallet = async (address, modelPath = '../outputs/gnn_model.p
   }
 };
 
+// Fetch wallet transaction info
+export const getWalletInfo = async (address) => {
+  try {
+    const response = await api.get(`/info/${address}`);
+    return response.data;
+  } catch (error) {
+    if (error.response) {
+      throw new Error(error.response.data.detail || 'Failed to fetch wallet info');
+    }
+    throw new Error('Network error. Please check if the backend is running.');
+  }
+};
+
 export default {
   checkHealth,
   ping,
   analyzeWallet,
+  getWalletInfo,
 };
