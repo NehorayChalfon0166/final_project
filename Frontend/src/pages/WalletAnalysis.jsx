@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Search, Loader, AlertCircle, CheckCircle, XCircle, TrendingUp, Network, Activity, ChevronDown, ChevronUp, ExternalLink, ArrowRightLeft, Wallet, ArrowDownLeft, ArrowUpRight, BarChart3, Download, Moon, Sun, History, FileJson } from 'lucide-react';
+import { Search, Loader, AlertCircle, CheckCircle, XCircle, TrendingUp, Network, Activity, ChevronDown, ChevronUp, ExternalLink, ArrowRightLeft, Wallet, ArrowDownLeft, ArrowUpRight, BarChart3, Download, Moon, Sun, History, FileJson, Copy, Check } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { analyzeWallet, getWalletInfo, getRandomWallet } from '../services/api';
 
@@ -18,6 +18,18 @@ function WalletAnalysis() {
     return saved ? JSON.parse(saved) : [];
   });
   const [showHistory, setShowHistory] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const copyToClipboard = async () => {
+    if (!address.trim()) return;
+    try {
+      await navigator.clipboard.writeText(address.trim());
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
 
   // Save search history
   useEffect(() => {
@@ -249,17 +261,29 @@ function WalletAnalysis() {
           <div className="form-group">
             <label htmlFor="wallet-address">Bitcoin Wallet Address</label>
             <div className="input-with-button">
-              <input
-                id="wallet-address"
-                type="text"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                placeholder="Enter Bitcoin wallet address"
-                className="form-input"
-                disabled={loading}
-              />
-              <button 
-                type="submit" 
+              <div className="input-with-copy">
+                <input
+                  id="wallet-address"
+                  type="text"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="Enter Bitcoin wallet address"
+                  className="form-input"
+                  disabled={loading}
+                />
+                {address && (
+                  <button
+                    type="button"
+                    className="copy-btn"
+                    onClick={copyToClipboard}
+                    title={copied ? 'Copied!' : 'Copy address'}
+                  >
+                    {copied ? <Check size={18} /> : <Copy size={18} />}
+                  </button>
+                )}
+              </div>
+              <button
+                type="submit"
                 className="btn btn-primary"
                 disabled={loading}
               >

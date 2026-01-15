@@ -102,6 +102,59 @@
   color: var(--gray-400);
 }
 
+/* Dark mode fix for example buttons (History button) */
+.dark-mode .example-btn {
+  background-color: var(--gray-100);
+  border-color: var(--gray-200);
+  color: var(--text-primary);
+}
+
+.dark-mode .example-btn:hover {
+  background-color: var(--gray-200);
+}
+
+/* Dark mode fix for classification card text */
+.dark-mode .classification-card.green {
+  background-color: rgba(16, 185, 129, 0.15);
+  border-color: #10b981;
+}
+
+.dark-mode .classification-card.green .classification-header h3,
+.dark-mode .classification-card.green .classification-description,
+.dark-mode .classification-card.green .risk-level {
+  color: #34d399;
+}
+
+.dark-mode .classification-card.red {
+  background-color: rgba(239, 68, 68, 0.15);
+  border-color: #ef4444;
+}
+
+.dark-mode .classification-card.red .classification-header h3,
+.dark-mode .classification-card.red .classification-description,
+.dark-mode .classification-card.red .risk-level {
+  color: #f87171;
+}
+
+/* Dark mode history dropdown */
+.dark-mode .history-dropdown {
+  background: var(--bg-primary);
+}
+
+.dark-mode .history-item:hover {
+  background: var(--gray-100);
+}
+
+.dark-mode .history-badge.criminal {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+}
+
+.dark-mode .history-badge.benign {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -572,6 +625,51 @@ code {
 .input-with-button {
   display: flex;
   gap: 1rem;
+}
+
+.input-with-copy {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-with-copy .form-input {
+  flex: 1;
+  padding-right: 2.5rem;
+}
+
+.copy-btn {
+  position: absolute;
+  right: 0.75rem;
+  background: none;
+  border: none;
+  color: var(--gray-400);
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.copy-btn:hover {
+  color: var(--primary-color);
+  background: var(--gray-100);
+}
+
+.copy-btn svg {
+  transition: transform 0.2s;
+}
+
+.dark-mode .copy-btn {
+  color: var(--gray-400);
+}
+
+.dark-mode .copy-btn:hover {
+  color: var(--primary-color);
+  background: var(--gray-200);
 }
 
 .input-with-button .form-input {

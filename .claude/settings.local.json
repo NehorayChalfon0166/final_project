@@ -46,7 +46,10 @@
       "Bash(git check-ignore -v scripts/evaluate_model.py)",
       "Bash(cd /Users/orimood/Desktop/homework/Visual\\\\ Studio\\\\ Code/final_project && git pull:*)",
       "Bash(git pull origin main --no-rebase)",
-      "WebFetch(domain:localhost)"
+      "WebFetch(domain:localhost)",
+      "Bash(xargs kill -9)",
+      "Bash(xargs:*)",
+      "Bash(chmod:*)"
     ]
   }
 }
