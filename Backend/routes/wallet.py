@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from typing import Optional, Dict, List, Any
 import requests
 import random
-from routes.utils.model_fit_utils import analyze_wallet_pipeline, fetch_transactions_mempool
+from routes.utils.model_fit_utils import analyze_wallet_pipeline, fetch_transactions_mempool, compute_feature_importance
 
 router = APIRouter()
 
@@ -37,6 +37,13 @@ class WalletInfoResult(BaseModel):
     total_sent_sats: Optional[int] = None
     funded_txo_count: Optional[int] = None
     spent_txo_count: Optional[int] = None
+
+
+class FeatureImportanceResult(BaseModel):
+    status: str
+    feature_importance: Optional[Dict[str, float]] = None
+    num_graphs_used: Optional[int] = None
+    message: Optional[str] = None
 
 
 def fetch_address_stats(address: str) -> Dict[str, Any]:
@@ -147,11 +154,6 @@ async def analyze_wallet(address: str, model_path: Optional[str] = "../outputs/g
     Returns:
         Analysis results with graph statistics and predictions (JSON)
     """
-    # Validate address using mempool.space API
-    is_valid = await validate_wallet_address(address)
-    if not is_valid:
-        raise HTTPException(status_code=400, detail=f"Invalid or inactive Bitcoin address: {address}")
-    
     try:
         result = analyze_wallet_pipeline(address, model_path)
         return AnalysisResult(**result)
@@ -170,11 +172,6 @@ async def get_wallet_info(address: str):
     Returns:
         Wallet info with transaction list (JSON)
     """
-    # Validate address using mempool.space API
-    is_valid = await validate_wallet_address(address)
-    if not is_valid:
-        raise HTTPException(status_code=400, detail=f"Invalid or inactive Bitcoin address: {address}")
-    
     try:
         # Fetch transactions and address stats
         transactions = fetch_transactions_mempool(address)
@@ -192,10 +189,13 @@ async def get_wallet_info(address: str):
         funded_txo_count = chain_stats.get('funded_txo_count', 0) + mempool_stats.get('funded_txo_count', 0)
         spent_txo_count = chain_stats.get('spent_txo_count', 0) + mempool_stats.get('spent_txo_count', 0)
         
+        # Get actual transaction count from the stats (more accurate than len(transactions))
+        tx_count = chain_stats.get('tx_count', 0) + mempool_stats.get('tx_count', 0)
+        
         return WalletInfoResult(
             address=address,
-            transaction_count=len(transactions),
-            transactions=transactions,
+            transaction_count=tx_count if tx_count > 0 else (len(transactions) if transactions else 0),
+            transactions=transactions if transactions else [],
             balance_sats=balance_sats,
             balance_btc=balance_sats / 100_000_000,
             total_received_sats=funded_sats,
@@ -203,5 +203,26 @@ async def get_wallet_info(address: str):
             funded_txo_count=funded_txo_count,
             spent_txo_count=spent_txo_count
         )
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to fetch transactions: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch wallet info: {str(e)}")
+
+
+@router.get("/feature-importance/{address}", response_model=FeatureImportanceResult)
+async def get_feature_importance(address: str):
+    """
+    Compute feature importance for a specific wallet address.
+    
+    Args:
+        address: Wallet address to compute feature importance for
+    
+    Returns:
+        Feature importance scores for each feature
+    """
+    result = compute_feature_importance(address)
+    
+    if result["status"] == "error":
+        raise HTTPException(status_code=500, detail=result["message"])
+    
+    return FeatureImportanceResult(**result)

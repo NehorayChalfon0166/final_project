@@ -6,6 +6,7 @@ seaborn
 networkx
 scipy
 scikit-learn
+umap-learn
 
 # Jupyter & Notebooks
 jupyter

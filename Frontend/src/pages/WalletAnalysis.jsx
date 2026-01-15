@@ -1,13 +1,15 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Search, Loader, AlertCircle, CheckCircle, XCircle, TrendingUp, Network, Activity, ChevronDown, ChevronUp, ExternalLink, ArrowRightLeft, Wallet, ArrowDownLeft, ArrowUpRight, BarChart3, Download, Moon, Sun, History, FileJson, Copy, Check } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { analyzeWallet, getWalletInfo, getRandomWallet } from '../services/api';
+import { analyzeWallet, getWalletInfo, getRandomWallet, getFeatureImportance } from '../services/api';
 
 function WalletAnalysis() {
   const [address, setAddress] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [walletInfo, setWalletInfo] = useState(null);
+  const [featureImportance, setFeatureImportance] = useState(null);
+  const [loadingFeatures, setLoadingFeatures] = useState(false);
   const [loadingTxns, setLoadingTxns] = useState(false);
   const [error, setError] = useState('');
   const [expandedTx, setExpandedTx] = useState(null);
@@ -60,11 +62,12 @@ function WalletAnalysis() {
     setError('');
     setResult(null);
     setWalletInfo(null);
+    setFeatureImportance(null);
     setShowTransactions(false);
     setVisibleTxCount(20);
 
     try {
-      // Fetch both analysis and transaction info in parallel
+      // Fetch analysis and transaction info
       const [analysisData, infoData] = await Promise.all([
         analyzeWallet(address.trim()),
         getWalletInfo(address.trim()).catch(() => null)
@@ -72,6 +75,18 @@ function WalletAnalysis() {
       setResult(analysisData);
       setWalletInfo(infoData);
       addToHistory(address.trim());
+      
+      // Fetch feature importance in the background
+      setLoadingFeatures(true);
+      getFeatureImportance(address.trim())
+        .then(data => {
+          setFeatureImportance(data);
+          setLoadingFeatures(false);
+        })
+        .catch(err => {
+          console.error('Failed to load feature importance:', err);
+          setLoadingFeatures(false);
+        });
     } catch (err) {
       setError(err.message || 'Failed to analyze wallet');
     } finally {
@@ -512,6 +527,73 @@ function WalletAnalysis() {
                   <strong>{getRiskLevel(result.risk_score)}</strong>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Feature Importance Chart */}
+          {featureImportance && featureImportance.feature_importance && (
+            <div className="chart-card">
+              <div className="chart-header">
+                <BarChart3 size={24} />
+                <h3>Feature Importance Analysis</h3>
+              </div>
+              <p className="chart-description">
+                Shows which wallet features are most influential in the classification model.
+                {featureImportance.num_graphs_used && ` Based on ${featureImportance.num_graphs_used} sample graphs.`}
+              </p>
+              <div className="chart-container">
+                <ResponsiveContainer width="100%" height={400}>
+                  <BarChart 
+                    data={Object.entries(featureImportance.feature_importance)
+                      .map(([name, value]) => ({
+                        name: name.replace(/_/g, ' ').replace(' log', ''),
+                        importance: (value * 100).toFixed(2),
+                        value: value
+                      }))
+                      .sort((a, b) => b.value - a.value)}
+                    layout="vertical"
+                    margin={{ top: 10, right: 30, left: 150, bottom: 10 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis 
+                      type="number"
+                      tick={{ fontSize: 12, fill: '#6b7280' }}
+                      axisLine={{ stroke: '#d1d5db' }}
+                      label={{ value: 'Importance (%)', position: 'insideBottom', offset: -5 }}
+                    />
+                    <YAxis 
+                      type="category"
+                      dataKey="name"
+                      tick={{ fontSize: 11, fill: '#6b7280' }}
+                      axisLine={{ stroke: '#d1d5db' }}
+                      width={140}
+                    />
+                    <Tooltip 
+                      contentStyle={{
+                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                        padding: '8px 12px'
+                      }}
+                      formatter={(value) => [`${value}%`, 'Importance']}
+                    />
+                    <Bar 
+                      dataKey="importance" 
+                      fill="#8b5cf6"
+                      radius={[0, 4, 4, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+
+          {loadingFeatures && (
+            <div className="chart-card">
+              <div className="chart-header">
+                <Loader className="spin" size={24} />
+                <h3>Loading Feature Importance...</h3>
+              </div>
             </div>
           )}
 

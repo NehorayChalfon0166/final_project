@@ -66,10 +66,24 @@ export const getRandomWallet = async () => {
   }
 };
 
+// Get feature importance
+export const getFeatureImportance = async (address) => {
+  try {
+    const response = await api.get(`/feature-importance/${address}`);
+    return response.data;
+  } catch (error) {
+    if (error.response) {
+      throw new Error(error.response.data.detail || 'Failed to fetch feature importance');
+    }
+    throw new Error('Network error. Please check if the backend is running.');
+  }
+};
+
 export default {
   checkHealth,
   ping,
   analyzeWallet,
   getWalletInfo,
   getRandomWallet,
+  getFeatureImportance,
 };
