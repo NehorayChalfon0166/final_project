@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { Search, Loader, AlertCircle, CheckCircle, XCircle, TrendingUp, Network, Activity, ChevronDown, ChevronUp, ExternalLink, ArrowRightLeft, Wallet, ArrowDownLeft, ArrowUpRight, BarChart3 } from 'lucide-react';
+import { useState, useMemo, useEffect } from 'react';
+import { Search, Loader, AlertCircle, CheckCircle, XCircle, TrendingUp, Network, Activity, ChevronDown, ChevronUp, ExternalLink, ArrowRightLeft, Wallet, ArrowDownLeft, ArrowUpRight, BarChart3, Download, Moon, Sun, History, FileJson } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { analyzeWallet, getWalletInfo, getRandomWallet } from '../services/api';
 
@@ -12,6 +12,29 @@ function WalletAnalysis() {
   const [error, setError] = useState('');
   const [expandedTx, setExpandedTx] = useState(null);
   const [showTransactions, setShowTransactions] = useState(false);
+  const [visibleTxCount, setVisibleTxCount] = useState(20);
+  const [searchHistory, setSearchHistory] = useState(() => {
+    const saved = localStorage.getItem('searchHistory');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [showHistory, setShowHistory] = useState(false);
+
+  // Save search history
+  useEffect(() => {
+    localStorage.setItem('searchHistory', JSON.stringify(searchHistory));
+  }, [searchHistory]);
+
+  const addToHistory = (addr) => {
+    const newEntry = {
+      address: addr,
+      timestamp: new Date().toISOString(),
+      classification: result?.classification
+    };
+    setSearchHistory(prev => {
+      const filtered = prev.filter(item => item.address !== addr);
+      return [newEntry, ...filtered].slice(0, 10); // Keep last 10
+    });
+  };
 
   const handleAnalyze = async (e) => {
     e.preventDefault();
@@ -26,6 +49,7 @@ function WalletAnalysis() {
     setResult(null);
     setWalletInfo(null);
     setShowTransactions(false);
+    setVisibleTxCount(20);
 
     try {
       // Fetch both analysis and transaction info in parallel
@@ -35,6 +59,7 @@ function WalletAnalysis() {
       ]);
       setResult(analysisData);
       setWalletInfo(infoData);
+      addToHistory(address.trim());
     } catch (err) {
       setError(err.message || 'Failed to analyze wallet');
     } finally {
@@ -141,6 +166,77 @@ function WalletAnalysis() {
     }
   };
 
+  const exportAsJSON = () => {
+    const exportData = {
+      address: result.wallet_address,
+      analysis: {
+        classification: result.classification,
+        risk_score: result.risk_score,
+        confidence: result.confidence,
+        nodes_count: result.nodes_count,
+        edges_count: result.edges_count,
+        ghost_nodes: result.ghost_nodes
+      },
+      balance: walletInfo ? {
+        balance_btc: walletInfo.balance_btc,
+        total_received_sats: walletInfo.total_received_sats,
+        total_sent_sats: walletInfo.total_sent_sats
+      } : null,
+      exported_at: new Date().toISOString()
+    };
+    
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `wallet-analysis-${result.wallet_address.slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportAsPDF = async () => {
+    const { jsPDF } = await import('jspdf');
+    const doc = new jsPDF();
+    
+    // Title
+    doc.setFontSize(20);
+    doc.text('Bitcoin Wallet Risk Analysis', 20, 20);
+    
+    // Address
+    doc.setFontSize(12);
+    doc.text(`Address: ${result.wallet_address}`, 20, 35);
+    doc.text(`Date: ${new Date().toLocaleDateString()}`, 20, 42);
+    
+    // Classification
+    doc.setFontSize(16);
+    doc.text('Classification', 20, 55);
+    doc.setFontSize(12);
+    doc.text(`Result: ${result.classification}`, 20, 65);
+    doc.text(`Risk Score: ${(result.risk_score * 100).toFixed(1)}%`, 20, 72);
+    doc.text(`Confidence: ${(result.confidence * 100).toFixed(1)}%`, 20, 79);
+    
+    // Graph Statistics
+    doc.setFontSize(16);
+    doc.text('Graph Statistics', 20, 95);
+    doc.setFontSize(12);
+    doc.text(`Nodes: ${result.nodes_count}`, 20, 105);
+    doc.text(`Edges: ${result.edges_count}`, 20, 112);
+    doc.text(`Neighbors: ${result.ghost_nodes}`, 20, 119);
+    
+    // Balance Info
+    if (walletInfo) {
+      doc.setFontSize(16);
+      doc.text('Balance Information', 20, 135);
+      doc.setFontSize(12);
+      doc.text(`Current Balance: ${walletInfo.balance_btc.toFixed(8)} BTC`, 20, 145);
+      doc.text(`Total Received: ${(walletInfo.total_received_sats / 100000000).toFixed(8)} BTC`, 20, 152);
+      doc.text(`Total Sent: ${(walletInfo.total_sent_sats / 100000000).toFixed(8)} BTC`, 20, 159);
+      doc.text(`Transactions: ${walletInfo.transaction_count}`, 20, 166);
+    }
+    
+    doc.save(`wallet-analysis-${result.wallet_address.slice(0, 10)}.pdf`);
+  };
+
   return (
     <div className="page-container">
       <div className="page-header">
@@ -192,8 +288,45 @@ function WalletAnalysis() {
               >
                 Random Wallet
               </button>
+              <button 
+                type="button"
+                className="example-btn"
+                onClick={() => setShowHistory(!showHistory)}
+              >
+                <History size={16} />
+                History ({searchHistory.length})
+              </button>
             </div>
           </div>
+
+          {/* Search History Dropdown */}
+          {showHistory && searchHistory.length > 0 && (
+            <div className="history-dropdown">
+              <h4>Recent Searches</h4>
+              {searchHistory.map((item, idx) => (
+                <div 
+                  key={idx} 
+                  className="history-item"
+                  onClick={() => {
+                    setAddress(item.address);
+                    setShowHistory(false);
+                  }}
+                >
+                  <div className="history-address">
+                    <code>{item.address.slice(0, 20)}...{item.address.slice(-10)}</code>
+                    {item.classification && (
+                      <span className={`history-badge ${item.classification.toLowerCase()}`}>
+                        {item.classification}
+                      </span>
+                    )}
+                  </div>
+                  <div className="history-time">
+                    {new Date(item.timestamp).toLocaleString()}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </form>
 
         {error && (
@@ -207,11 +340,31 @@ function WalletAnalysis() {
       {result && (
         <div className="results-container">
           <div className="result-header">
-            <h2>Analysis Results</h2>
-            <span className="status-badge success">
-              <CheckCircle size={16} />
-              {result.status}
-            </span>
+            <div>
+              <h2>Analysis Results</h2>
+              <span className="status-badge success">
+                <CheckCircle size={16} />
+                {result.status}
+              </span>
+            </div>
+            <div className="export-buttons">
+              <button 
+                className="btn btn-secondary"
+                onClick={exportAsJSON}
+                title="Export as JSON"
+              >
+                <FileJson size={18} />
+                JSON
+              </button>
+              <button 
+                className="btn btn-secondary"
+                onClick={exportAsPDF}
+                title="Export as PDF"
+              >
+                <Download size={18} />
+                PDF
+              </button>
+            </div>
           </div>
 
           <div className="stats-grid">
@@ -427,7 +580,7 @@ function WalletAnalysis() {
 
               {showTransactions && (
                 <div className="transactions-list">
-                  {walletInfo.transactions.slice(0, 20).map((tx, index) => (
+                  {walletInfo.transactions.slice(0, visibleTxCount).map((tx, index) => (
                     <div key={tx.txid} className="transaction-item">
                       <div 
                         className="transaction-summary"
@@ -521,15 +674,28 @@ function WalletAnalysis() {
                       )}
                     </div>
                   ))}
-                  {walletInfo.transactions.length > 20 && (
+                  {visibleTxCount < walletInfo.transactions.length && (
+                    <div className="load-more-container">
+                      <button 
+                        className="btn btn-secondary load-more-btn"
+                        onClick={() => setVisibleTxCount(prev => prev + 20)}
+                      >
+                        Load More Transactions
+                      </button>
+                      <span className="load-more-info">
+                        Showing {visibleTxCount} of {walletInfo.transaction_count}
+                      </span>
+                    </div>
+                  )}
+                  {visibleTxCount >= walletInfo.transactions.length && walletInfo.transactions.length > 20 && (
                     <div className="more-transactions">
-                      Showing 20 of {walletInfo.transaction_count} transactions.
+                      All {walletInfo.transaction_count} transactions loaded.
                       <a 
                         href={`https://mempool.space/address/${result.wallet_address}`}
                         target="_blank"
                         rel="noopener noreferrer"
                       >
-                        View all on Mempool.space <ExternalLink size={14} />
+                        View on Mempool.space <ExternalLink size={14} />
                       </a>
                     </div>
                   )}
