@@ -36,7 +36,9 @@
       "Bash(\"/Users/orimood/Desktop/homework/Visual Studio Code/final_project/venv/bin/python\" -c \"\nfrom models.optimal_gnn import OptimalBitcoinGNN\nprint\\(''Models import: OK''\\)\n\")",
       "Bash(find:*)",
       "Bash(\"/Users/orimood/Desktop/homework/Visual Studio Code/final_project/venv/bin/python\" run_pipeline.py --help)",
-      "Bash(git commit -m \"$\\(cat <<''EOF''\nRestructure project: move source code to src/ directory\n\n- Move feature_engineering/ to src/features/\n- Move graph_pipeline/ to src/graph/\n- Move models/ to src/models/\n- Move evaluation/ to src/evaluation/\n- Move baselines/ to src/baselines/\n- Add run_pipeline.py master script with 5 steps\n- Connect evaluation modules to pipeline\n- Update .gitignore to exclude large data files\n- Remove old eda/, elliptic_model/wandb/ directories\n- Consolidate notebooks/ directory\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nRestructure project: move source code to src/ directory\n\n- Move feature_engineering/ to src/features/\n- Move graph_pipeline/ to src/graph/\n- Move models/ to src/models/\n- Move evaluation/ to src/evaluation/\n- Move baselines/ to src/baselines/\n- Add run_pipeline.py master script with 5 steps\n- Connect evaluation modules to pipeline\n- Update .gitignore to exclude large data files\n- Remove old eda/, elliptic_model/wandb/ directories\n- Consolidate notebooks/ directory\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "WebFetch(domain:mempool.space)",
+      "WebSearch"
     ]
   }
 }
