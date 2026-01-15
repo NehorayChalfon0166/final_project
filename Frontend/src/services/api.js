@@ -53,9 +53,23 @@ export const getWalletInfo = async (address) => {
   }
 };
 
+// Get random wallet address
+export const getRandomWallet = async () => {
+  try {
+    const response = await api.get('/random');
+    return response.data;
+  } catch (error) {
+    if (error.response) {
+      throw new Error(error.response.data.detail || 'Failed to fetch random wallet');
+    }
+    throw new Error('Network error. Please check if the backend is running.');
+  }
+};
+
 export default {
   checkHealth,
   ping,
   analyzeWallet,
   getWalletInfo,
+  getRandomWallet,
 };

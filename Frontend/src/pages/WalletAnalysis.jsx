@@ -1,6 +1,7 @@
-import { useState } from 'react';
-import { Search, Loader, AlertCircle, CheckCircle, XCircle, TrendingUp, Network, Activity, ChevronDown, ChevronUp, ExternalLink, ArrowRightLeft, Wallet, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
-import { analyzeWallet, getWalletInfo } from '../services/api';
+import { useState, useMemo } from 'react';
+import { Search, Loader, AlertCircle, CheckCircle, XCircle, TrendingUp, Network, Activity, ChevronDown, ChevronUp, ExternalLink, ArrowRightLeft, Wallet, ArrowDownLeft, ArrowUpRight, BarChart3 } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { analyzeWallet, getWalletInfo, getRandomWallet } from '../services/api';
 
 function WalletAnalysis() {
   const [address, setAddress] = useState('');
@@ -75,22 +76,69 @@ function WalletAnalysis() {
     return `${addr.slice(0, chars)}...${addr.slice(-chars)}`;
   };
 
-  const generateRandomWallet = () => {
-    // Real Bitcoin addresses with confirmed activity on mempool.space
-    const realWallets = [
-      '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',  // Satoshi Nakamoto - Genesis block
-      'bc1qgdjqv0av3q56jvd82tkdjpy7gdp9ut8tlqmgrpmv24sq90ecnvqqjwvw97',  // Binance cold wallet
-      '3D2oetdNuZUqQHPJmcMDDHYoqkyNVsFk9r',  // Bitfinex
-      'bc1qa5wkgaew2dkv56kfvj49j0av5nml45x9ek9hz6',  // Active SegWit wallet
-      '1NDyJtNTjmwk5xPNhjgAMu4HDHigtobu1s',  // Bittrex
-      '3Cbq7aT1tY8kMxWLbitaG7yT6bPbKChq64',  // Huobi
-      'bc1qm34lsc65zpw79lxes69zkqmk6ee3ewf0j77s3h',  // Active modern wallet
-      '12cbQLTFMXRnSzktFkuoG3eHJjPyoPLgy7',  // Early mining pool
-      '1Kr6QSydW9bFQG1mXiPNNu6WpJGmUa9i1g',  // Kraken
-      'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh'   // Active SegWit address
-    ];
-    const randomAddress = realWallets[Math.floor(Math.random() * realWallets.length)];
-    setAddress(randomAddress);
+  // Prepare chart data - aggregate transaction volume by week
+  const chartData = useMemo(() => {
+    if (!walletInfo?.transactions?.length) return [];
+    
+    const volumeByPeriod = {};
+    const walletAddr = result?.wallet_address;
+    
+    walletInfo.transactions.forEach(tx => {
+      if (!tx.status?.block_time) return;
+      
+      const date = new Date(tx.status.block_time * 1000);
+      // Use week-based aggregation for better granularity
+      const startOfWeek = new Date(date);
+      startOfWeek.setDate(date.getDate() - date.getDay());
+      const weekKey = startOfWeek.toISOString().split('T')[0];
+      
+      // Calculate incoming (received) and outgoing (sent) for this wallet
+      let incoming = 0;
+      let outgoing = 0;
+      
+      // Check inputs (spending from our wallet = outgoing)
+      tx.vin?.forEach(input => {
+        if (input.prevout?.scriptpubkey_address === walletAddr) {
+          outgoing += input.prevout.value || 0;
+        }
+      });
+      
+      // Check outputs (receiving to our wallet = incoming)
+      tx.vout?.forEach(output => {
+        if (output.scriptpubkey_address === walletAddr) {
+          incoming += output.value || 0;
+        }
+      });
+      
+      if (!volumeByPeriod[weekKey]) {
+        volumeByPeriod[weekKey] = { period: weekKey, incoming: 0, outgoing: 0, txCount: 0 };
+      }
+      volumeByPeriod[weekKey].incoming += incoming;
+      volumeByPeriod[weekKey].outgoing += outgoing;
+      volumeByPeriod[weekKey].txCount += 1;
+    });
+    
+    return Object.values(volumeByPeriod)
+      .sort((a, b) => a.period.localeCompare(b.period))
+      .map(item => ({
+        ...item,
+        incomingBTC: item.incoming / 100000000,
+        outgoingBTC: item.outgoing / 100000000,
+        volumeBTC: (item.incoming + item.outgoing) / 100000000,
+        label: new Date(item.period).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      }));
+  }, [walletInfo, result]);
+
+  const generateRandomWallet = async () => {
+    try {
+      const data = await getRandomWallet();
+      if (data.address) {
+        setAddress(data.address);
+      }
+    } catch (err) {
+      console.error('Error fetching random wallet:', err);
+      setError('Failed to fetch random wallet. Please try again.');
+    }
   };
 
   return (
@@ -135,15 +183,8 @@ function WalletAnalysis() {
           </div>
           
           <div className="example-addresses">
-            <p className="text-muted">Example address:</p>
+            <p className="text-muted">Get a wallet from latest transactions:</p>
             <div className="address-examples">
-              <button 
-                type="button"
-                className="example-btn"
-                onClick={() => setAddress('1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa')}
-              >
-                Bitcoin Genesis Block
-              </button>
               <button 
                 type="button"
                 className="example-btn random-btn"
@@ -297,39 +338,76 @@ function WalletAnalysis() {
             </div>
           )}
 
-          <div className="details-card">
-            <h3>Wallet Details</h3>
-            <div className="detail-row">
-              <span className="detail-label">Address:</span>
-              <code className="detail-value">{result.wallet_address}</code>
-            </div>
-            <div className="detail-row">
-              <span className="detail-label">Graph Structure:</span>
-              <div className="detail-value">
-                {result.graph_data ? (
-                  <>
-                    <div>Node features: {result.graph_data.x_shape?.join(' × ')}</div>
-                    <div>Edge index: {result.graph_data.edge_index_shape?.join(' × ')}</div>
-                    <div>Edge attributes: {result.graph_data.edge_attr_shape?.join(' × ')}</div>
-                  </>
-                ) : (
-                  <div>No graph data available</div>
-                )}
+          {/* Transaction Volume Chart */}
+          {chartData.length > 0 && (
+            <div className="chart-card">
+              <div className="chart-header">
+                <BarChart3 size={24} />
+                <h3>Transaction Volume Over Time</h3>
+              </div>
+              <div className="chart-container">
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis 
+                      dataKey="label" 
+                      tick={{ fontSize: 12, fill: '#6b7280' }}
+                      axisLine={{ stroke: '#d1d5db' }}
+                    />
+                    <YAxis 
+                      tick={{ fontSize: 12, fill: '#6b7280' }}
+                      axisLine={{ stroke: '#d1d5db' }}
+                      tickFormatter={(value) => value.toFixed(4)}
+                      label={{ value: 'BTC', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fill: '#6b7280' } }}
+                    />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'white', 
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                        boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+                      }}
+                      formatter={(value, name) => {
+                        const labels = { incomingBTC: 'Received', outgoingBTC: 'Sent' };
+                        return [`${value.toFixed(8)} BTC`, labels[name] || name];
+                      }}
+                      labelFormatter={(label) => `Week of ${label}`}
+                    />
+                    <Legend 
+                      formatter={(value) => value === 'incomingBTC' ? 'Received' : 'Sent'}
+                      wrapperStyle={{ paddingTop: '10px' }}
+                    />
+                    <Bar 
+                      dataKey="incomingBTC" 
+                      fill="#22c55e" 
+                      radius={[4, 4, 0, 0]}
+                      name="incomingBTC"
+                    />
+                    <Bar 
+                      dataKey="outgoingBTC" 
+                      fill="#ef4444" 
+                      radius={[4, 4, 0, 0]}
+                      name="outgoingBTC"
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="chart-summary">
+                <div className="chart-stat received">
+                  <span className="chart-stat-label">Total Received</span>
+                  <span className="chart-stat-value">{chartData.reduce((sum, d) => sum + d.incomingBTC, 0).toFixed(6)} BTC</span>
+                </div>
+                <div className="chart-stat">
+                  <span className="chart-stat-label">Transactions</span>
+                  <span className="chart-stat-value">{chartData.reduce((sum, d) => sum + d.txCount, 0)}</span>
+                </div>
+                <div className="chart-stat sent">
+                  <span className="chart-stat-label">Total Sent</span>
+                  <span className="chart-stat-value">{chartData.reduce((sum, d) => sum + d.outgoingBTC, 0).toFixed(6)} BTC</span>
+                </div>
               </div>
             </div>
-            {result.message && (
-              <div className="detail-row">
-                <span className="detail-label">Message:</span>
-                <span className="detail-value">{result.message}</span>
-              </div>
-            )}
-            {result.inference_error && (
-              <div className="alert alert-warning">
-                <AlertCircle size={16} />
-                <span>{result.inference_error}</span>
-              </div>
-            )}
-          </div>
+          )}
 
           {/* Transactions Section */}
           {walletInfo && walletInfo.transactions && walletInfo.transactions.length > 0 && (

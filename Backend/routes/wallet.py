@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional, Dict, List, Any
 import requests
+import random
 from routes.utils.model_fit_utils import analyze_wallet_pipeline, fetch_transactions_mempool
 
 router = APIRouter()
@@ -66,6 +67,73 @@ async def validate_wallet_address(address: str) -> bool:
         return False
     except:
         return False
+
+
+@router.get("/random")
+async def get_random_wallet():
+    """
+    Get a random wallet address from the latest Bitcoin block.
+    
+    Returns:
+        Random wallet address from recent transactions
+    """
+    try:
+        # Fetch latest block height
+        tip_response = requests.get(
+            "https://mempool.space/api/blocks/tip/height",
+            headers={'User-Agent': 'Mozilla/5.0'},
+            timeout=10
+        )
+        if tip_response.status_code != 200:
+            raise HTTPException(status_code=500, detail="Failed to fetch block height")
+        
+        tip_height = tip_response.json()
+        
+        # Get block hash
+        block_response = requests.get(
+            f"https://mempool.space/api/block-height/{tip_height}",
+            headers={'User-Agent': 'Mozilla/5.0'},
+            timeout=10
+        )
+        if block_response.status_code != 200:
+            raise HTTPException(status_code=500, detail="Failed to fetch block hash")
+        
+        block_hash = block_response.text
+        
+        # Get transactions from this block
+        txs_response = requests.get(
+            f"https://mempool.space/api/block/{block_hash}/txs",
+            headers={'User-Agent': 'Mozilla/5.0'},
+            timeout=10
+        )
+        if txs_response.status_code != 200:
+            raise HTTPException(status_code=500, detail="Failed to fetch transactions")
+        
+        txs = txs_response.json()
+        
+        # Collect all unique addresses from outputs
+        addresses = set()
+        for tx in txs:
+            if 'vout' in tx:
+                for output in tx['vout']:
+                    addr = output.get('scriptpubkey_address')
+                    if addr and not addr.startswith('OP_RETURN'):
+                        addresses.add(addr)
+        
+        # Convert to list and pick random
+        if not addresses:
+            raise HTTPException(status_code=500, detail="No addresses found in recent block")
+        
+        address_list = list(addresses)
+        random_address = random.choice(address_list)
+        
+        return {"address": random_address}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching random wallet: {str(e)}")
+
 
 @router.get("/analyze/{address}", response_model=AnalysisResult)
 async def analyze_wallet(address: str, model_path: Optional[str] = "../outputs/gnn_model.pt"):
