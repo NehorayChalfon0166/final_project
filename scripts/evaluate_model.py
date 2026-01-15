@@ -203,6 +203,9 @@ def build_graphs(
                 center_label=label
             )
 
+        # Add source metadata to graph
+        graph.source = source
+
         graphs.append((graph, label, source, address))
 
     print(f"Built {len(graphs)} graphs")
@@ -414,6 +417,12 @@ async def main():
 
     # Build graphs
     graphs = build_graphs(df, transactions, graph_builder)
+
+    # Save graphs
+    graph_save_path = os.path.join(PROJECT_ROOT, 'outputs', 'eval_graphs.pt')
+    graph_data = [g[0] for g in graphs]  # Extract just the PyG Data objects
+    torch.save(graph_data, graph_save_path)
+    print(f"\nSaved {len(graph_data)} graphs to {graph_save_path}")
 
     # Evaluate
     results = evaluate_model(model, graphs, device)

@@ -41,7 +41,12 @@
       "WebSearch",
       "Bash(venv/bin/python:*)",
       "Bash(venv/bin/pip list:*)",
-      "Bash(jupyter kernelspec:*)"
+      "Bash(jupyter kernelspec:*)",
+      "Bash(git status -u)",
+      "Bash(git check-ignore -v scripts/evaluate_model.py)",
+      "Bash(cd /Users/orimood/Desktop/homework/Visual\\\\ Studio\\\\ Code/final_project && git pull:*)",
+      "Bash(git pull origin main --no-rebase)",
+      "WebFetch(domain:localhost)"
     ]
   }
 }
