@@ -740,4 +740,359 @@ code {
     gap: 1rem;
     align-items: flex-start;
   }
+
+  .tx-io-container {
+    flex-direction: column;
+  }
+
+  .tx-arrow {
+    transform: rotate(90deg);
+  }
+}
+
+/* Transactions Section */
+.transactions-card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+  margin-top: 1.5rem;
+}
+
+.transactions-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.5rem;
+  background: linear-gradient(135deg, var(--gray-50), var(--gray-100));
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.transactions-header:hover {
+  background: var(--gray-100);
+}
+
+.transactions-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.transactions-title h3 {
+  font-size: 1.1rem;
+  color: var(--gray-800);
+  margin: 0;
+}
+
+.toggle-btn {
+  background: none;
+  border: none;
+  color: var(--gray-500);
+  cursor: pointer;
+  padding: 0.25rem;
+}
+
+.transactions-list {
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.transaction-item {
+  border-bottom: 1px solid var(--gray-100);
+}
+
+.transaction-item:last-child {
+  border-bottom: none;
+}
+
+.transaction-summary {
+  padding: 1rem 1.5rem;
+  cursor: pointer;
+  transition: background 0.2s;
+  position: relative;
+}
+
+.transaction-summary:hover {
+  background: var(--gray-50);
+}
+
+.tx-main-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.tx-id {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tx-id code {
+  font-size: 0.9rem;
+  color: var(--primary-color);
+}
+
+.external-link {
+  color: var(--gray-400);
+  transition: color 0.2s;
+}
+
+.external-link:hover {
+  color: var(--primary-color);
+}
+
+.tx-status .confirmed {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--success-color);
+  font-size: 0.85rem;
+}
+
+.tx-status .pending {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--warning-color);
+  font-size: 0.85rem;
+}
+
+.tx-details-row {
+  display: flex;
+  gap: 1.5rem;
+  font-size: 0.85rem;
+  color: var(--gray-500);
+}
+
+.expand-btn {
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--gray-400);
+  cursor: pointer;
+  padding: 0.25rem;
+}
+
+.transaction-expanded {
+  padding: 1rem 1.5rem;
+  background: var(--gray-50);
+  border-top: 1px solid var(--gray-200);
+}
+
+.tx-io-container {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-start;
+}
+
+.tx-inputs,
+.tx-outputs {
+  flex: 1;
+  min-width: 0;
+}
+
+.tx-inputs h4,
+.tx-outputs h4 {
+  font-size: 0.85rem;
+  color: var(--gray-600);
+  margin-bottom: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.tx-arrow {
+  color: var(--gray-400);
+  font-size: 1.5rem;
+  padding-top: 2rem;
+}
+
+.tx-io-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  background: white;
+  border-radius: 6px;
+  margin-bottom: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.tx-io-item code {
+  font-size: 0.8rem;
+  color: var(--gray-700);
+}
+
+.tx-io-item code.highlight {
+  color: var(--primary-color);
+  font-weight: 600;
+}
+
+.tx-io-item .amount {
+  color: var(--gray-600);
+  font-weight: 500;
+}
+
+.tx-io-item .coinbase {
+  color: var(--warning-color);
+  font-weight: 500;
+}
+
+.tx-io-item .op-return {
+  color: var(--gray-400);
+  font-style: italic;
+}
+
+.more-items {
+  font-size: 0.8rem;
+  color: var(--gray-400);
+  text-align: center;
+  padding: 0.5rem;
+}
+
+.more-transactions {
+  padding: 1rem 1.5rem;
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--gray-500);
+  background: var(--gray-50);
+}
+
+.more-transactions a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--primary-color);
+  margin-left: 0.5rem;
+  text-decoration: none;
+}
+
+.more-transactions a:hover {
+  text-decoration: underline;
+}
+
+/* Wallet Balance Section */
+.balance-card {
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: var(--shadow-md);
+  margin-bottom: 1.5rem;
+}
+
+.balance-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+  color: var(--gray-700);
+}
+
+.balance-header h3 {
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+.balance-grid {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.balance-item {
+  padding: 1rem;
+  border-radius: 10px;
+  background: var(--gray-50);
+}
+
+.balance-item.main-balance {
+  background: linear-gradient(135deg, #f59e0b15, #f59e0b08);
+  border: 1px solid #f59e0b30;
+  text-align: center;
+  padding: 1.5rem;
+}
+
+.balance-item.received {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  background: linear-gradient(135deg, #10b98115, #10b98108);
+  border: 1px solid #10b98130;
+}
+
+.balance-item.sent {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  background: linear-gradient(135deg, #ef444415, #ef444408);
+  border: 1px solid #ef444430;
+}
+
+.balance-icon {
+  padding: 0.5rem;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.balance-item.received .balance-icon {
+  background: #10b98120;
+  color: var(--success-color);
+}
+
+.balance-item.sent .balance-icon {
+  background: #ef444420;
+  color: var(--error-color);
+}
+
+.balance-content {
+  flex: 1;
+}
+
+.balance-label {
+  font-size: 0.85rem;
+  color: var(--gray-500);
+  margin-bottom: 0.25rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.balance-value {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--gray-800);
+}
+
+.balance-value.btc {
+  font-size: 1.5rem;
+  color: #f59e0b;
+}
+
+.balance-subvalue {
+  font-size: 0.85rem;
+  color: var(--gray-500);
+  margin-top: 0.25rem;
+}
+
+.balance-count {
+  font-size: 0.8rem;
+  color: var(--gray-400);
+  margin-top: 0.25rem;
+}
+
+@media (max-width: 768px) {
+  .balance-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .balance-item.main-balance {
+    order: -1;
+  }
 }
