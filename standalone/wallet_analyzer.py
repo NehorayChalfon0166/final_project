@@ -472,7 +472,9 @@ def get_model_path(model_arg: str | None) -> str:
     # Relative to this script
     script_dir = os.path.dirname(os.path.abspath(__file__))
     candidates.append(os.path.join(script_dir, "outputs", "gnn_model.pt"))
+    candidates.append(os.path.join(script_dir, "..", "outputs", "gnn_model.pt"))
     candidates.append(os.path.join(script_dir, "outputs", "gnn_checkpoint.pt"))
+    candidates.append(os.path.join(script_dir, "..", "outputs", "gnn_checkpoint.pt"))
 
     for path in candidates:
         if os.path.isfile(path):

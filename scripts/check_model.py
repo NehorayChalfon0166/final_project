@@ -10,7 +10,7 @@ import numpy as np
 from collections import defaultdict
 
 # Add src to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from models.optimal_gnn import OptimalBitcoinGNN
 from graph.dataloader import EgoGraphDataset
@@ -92,7 +92,7 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Using device: {device}")
 
-    model_path = os.path.join(os.path.dirname(__file__), 'outputs', 'gnn_model.pt')
+    model_path = os.path.join(os.path.dirname(__file__), '..', 'outputs', 'gnn_model.pt')
 
     if not os.path.exists(model_path):
         print(f"Model not found at {model_path}")

@@ -43,29 +43,54 @@ python run_pipeline.py --train     # Step 4: Train GNN model
 python run_pipeline.py --evaluate  # Step 5: Evaluate & compare models
 ```
 
+## Standalone CLI
+
+A self-contained command-line tool for analyzing any Bitcoin wallet without running the full web app.
+
+```bash
+cd standalone
+
+# macOS/Linux — one-click setup & run
+./setup_and_run.sh 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa
+
+# Windows
+setup_and_run.bat 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa
+
+# Or run directly (requires dependencies installed)
+python wallet_analyzer.py 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa
+python wallet_analyzer.py --no-charts bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh
+python wallet_analyzer.py --model /path/to/model.pt <address>
+```
+
+- Fetches live transactions from mempool.space
+- Builds ego-graph and runs GNN inference
+- Generates charts (risk gauge, feature importance, transaction volume) saved to `analyses/<address>/`
+- First run auto-installs dependencies into a local venv
+
 ## Project Structure
 
 ```
 final_project/
 ├── Backend/                    # FastAPI backend
 ├── Frontend/                   # React frontend
+├── standalone/                 # Standalone CLI tool
+│   ├── wallet_analyzer.py     # Self-contained analyzer script
+│   ├── wallet_analyzer.spec   # PyInstaller build spec
+│   ├── setup_and_run.sh       # macOS/Linux one-click installer
+│   └── setup_and_run.bat      # Windows one-click installer
 ├── data/                       # Raw datasets
 │   ├── realcats/              # REAL-CATS dataset
 │   └── elliptic/              # Elliptic++ dataset
 ├── src/                        # Source code
 │   ├── features/              # Feature extraction
-│   │   ├── pipeline_conservative.py
-│   │   └── prepare_balanced_dataset.py
 │   ├── graph/                 # Ego-graph construction
-│   │   ├── pipeline.py
-│   │   ├── graph_builder.py
-│   │   └── dataloader.py
 │   ├── models/                # GNN model
-│   │   ├── optimal_gnn.py
-│   │   └── train_optimal.py
-│   ├── baselines/             # Baseline models
-│   │   └── xgboost_baseline.py
+│   ├── baselines/             # Baseline models (XGBoost)
 │   └── evaluation/            # Evaluation tools
+├── scripts/                    # Utility scripts
+│   ├── evaluate_model.py      # Model evaluation on test set
+│   ├── check_model.py         # Model inspection
+│   └── build_remaining_graphs.py
 ├── notebooks/                  # Jupyter notebooks
 ├── graph_data/                 # Generated ego-graphs
 ├── outputs/                    # All outputs

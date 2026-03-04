@@ -31,7 +31,7 @@ a = Analysis(
     binaries=[],
     datas=[
         # Bundle the trained model
-        (os.path.join('outputs', 'gnn_model.pt'), '.'),
+        (os.path.join('..', 'outputs', 'gnn_model.pt'), '.'),
     ] + torch_geo_datas + torch_datas,
     hiddenimports=[
         # torch_geometric core
