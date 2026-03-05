@@ -19,6 +19,20 @@ import sys
 import time
 from typing import Dict, List, Tuple
 
+# ---------------------------------------------------------------------------
+# Auto-activate local venv created by setup_and_run.bat/.sh (if present)
+# ---------------------------------------------------------------------------
+_script_dir = os.path.dirname(os.path.abspath(__file__))
+_venv_dir = os.path.join(_script_dir, ".analyzer_env")
+if os.path.isdir(_venv_dir) and sys.prefix == sys.base_prefix:
+    # Venv exists but is not activated
+    if sys.platform == "win32":
+        _venv_python = os.path.join(_venv_dir, "Scripts", "python.exe")
+    else:
+        _venv_python = os.path.join(_venv_dir, "bin", "python")
+    if os.path.isfile(_venv_python):
+        os.execv(_venv_python, [_venv_python] + sys.argv)
+
 import numpy as np
 import requests
 import torch

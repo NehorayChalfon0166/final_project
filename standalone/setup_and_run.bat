@@ -1,6 +1,6 @@
 @echo off
 REM ============================================================
-REM Bitcoin Wallet Risk Analyzer — Windows One-Click Installer
+REM Bitcoin Wallet Risk Analyzer - Windows One-Click Installer
 REM ============================================================
 REM First run: Creates venv and installs dependencies (~2 min)
 REM Subsequent runs: Skips install and runs directly
@@ -12,6 +12,9 @@ REM   setup_and_run.bat --no-charts bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh
 REM ============================================================
 
 setlocal EnableDelayedExpansion
+
+REM Change to the directory where this bat file lives
+cd /d "%~dp0"
 
 set VENV_DIR=.analyzer_env
 set PYTHON_CMD=python
@@ -53,7 +56,7 @@ echo  Python %PYVER% detected.
 REM Create venv if it doesn't exist
 if not exist "%VENV_DIR%\Scripts\activate.bat" (
     echo.
-    echo  First run — setting up environment...
+    echo  First run - setting up environment...
     echo  [1/3] Creating virtual environment...
     %PYTHON_CMD% -m venv %VENV_DIR%
     if %ERRORLEVEL% neq 0 (
@@ -66,7 +69,7 @@ if not exist "%VENV_DIR%\Scripts\activate.bat" (
     call %VENV_DIR%\Scripts\activate.bat
     python -m pip install --upgrade pip --quiet
 
-    echo  [3/3] Installing dependencies (this may take a few minutes)...
+    echo  [3/3] Installing dependencies, this may take a few minutes...
     pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu --quiet
     pip install torch-geometric --quiet
     pip install requests matplotlib numpy --quiet
@@ -78,7 +81,7 @@ if not exist "%VENV_DIR%\Scripts\activate.bat" (
     )
 
     echo.
-    echo  Setup complete!
+    echo  Setup complete^^!
     echo.
 ) else (
     call %VENV_DIR%\Scripts\activate.bat
