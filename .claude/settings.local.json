@@ -49,7 +49,16 @@
       "WebFetch(domain:localhost)",
       "Bash(xargs kill -9)",
       "Bash(xargs:*)",
-      "Bash(chmod:*)"
+      "Bash(chmod:*)",
+      "Bash(dir:*)",
+      "Bash(pyinstaller:*)",
+      "Bash(\"D:\\\\projects\\\\final_project\\\\standalone\\\\dist\\\\wallet_analyzer.exe\":*)",
+      "Bash(\"D:\\\\projects\\\\final_project\\\\standalone\\\\dist\\\\wallet_analyzer\\\\wallet_analyzer.exe\" --help)",
+      "Bash(\"D:\\\\projects\\\\final_project\\\\standalone\\\\dist\\\\wallet_analyzer\\\\wallet_analyzer.exe\" --no-charts 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa)",
+      "Bash(echo:*)",
+      "Bash(\"D:\\\\projects\\\\final_project\\\\standalone\\\\dist\\\\wallet_analyzer\\\\wallet_analyzer.exe\" --no-charts)",
+      "Bash(\"D:\\\\projects\\\\final_project\\\\standalone\\\\dist2\\\\wallet_analyzer\\\\wallet_analyzer.exe\")",
+      "Bash(gh release:*)"
     ]
   }
 }

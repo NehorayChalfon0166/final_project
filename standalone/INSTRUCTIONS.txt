@@ -1,0 +1,98 @@
+============================================================
+  Bitcoin Wallet Risk Analyzer - Instructions
+============================================================
+
+WHAT IS THIS?
+  A standalone tool that classifies Bitcoin wallets as
+  BENIGN or CRIMINAL using a Graph Neural Network (GATv2).
+  No Python installation required - just run the exe.
+
+REQUIREMENTS:
+  - Windows 10/11 (64-bit)
+  - Internet connection (fetches live data from mempool.space)
+
+------------------------------------------------------------
+  HOW TO USE
+------------------------------------------------------------
+
+OPTION 1: Double-click
+  Double-click wallet_analyzer.exe
+  It will prompt you to enter a Bitcoin address.
+  After each analysis you can enter another address
+  or type 'q' to quit.
+
+OPTION 2: Command line
+  Open Command Prompt (cmd) or PowerShell in this folder,
+  then run:
+
+    wallet_analyzer.exe <BITCOIN_ADDRESS>
+
+  Example:
+    wallet_analyzer.exe 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa
+
+------------------------------------------------------------
+  OPTIONS
+------------------------------------------------------------
+
+  --save-charts     Save charts (risk gauge, feature
+                    importance, transaction volume)
+  --open-charts     Save and automatically open charts
+  --model PATH      Use a custom model file (.pt)
+  --output-dir DIR  Save charts to a specific folder
+
+  Examples:
+    wallet_analyzer.exe 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa
+    wallet_analyzer.exe --save-charts bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh
+    wallet_analyzer.exe --open-charts 3FZbgi29cpjq2GjdwV8eyHuJJnkLtktZc5
+
+------------------------------------------------------------
+  OUTPUT
+------------------------------------------------------------
+
+  The tool displays:
+    - Classification: BENIGN or CRIMINAL
+    - Risk Score: 0-100% (LOW / MODERATE / HIGH / CRITICAL)
+    - Confidence: how certain the model is
+    - Wallet balance and transaction totals
+    - Top features that influenced the classification
+
+  Charts (only with --save-charts or --open-charts):
+    Saved to analyses/<address>/ folder:
+    - risk_gauge.png          Semi-circle risk meter
+    - feature_importance.png  Bar chart of feature weights
+    - tx_volume.png           Weekly incoming/outgoing volume
+
+------------------------------------------------------------
+  IMPORTANT NOTES
+------------------------------------------------------------
+
+  - Keep wallet_analyzer.exe and the _internal folder
+    together. The exe will not work without _internal.
+  - First launch may take a few seconds to load.
+  - Analysis time depends on how many transactions the
+    wallet has (typically 5-30 seconds).
+  - The tool needs internet access to fetch blockchain data.
+  - After each analysis you can enter another address
+    or type 'q' to quit.
+
+------------------------------------------------------------
+  TROUBLESHOOTING
+------------------------------------------------------------
+
+  "No transactions found"
+    The address has no confirmed transactions or may be
+    invalid. Check the address and try again.
+
+  "No internet connection"
+    The tool requires internet to reach mempool.space.
+    Check your connection and firewall settings.
+
+  "Model file not found"
+    The GNN model is bundled inside _internal. If you
+    moved the exe without _internal, put them back together.
+
+  Slow startup
+    First launch extracts files and initializes PyTorch.
+    Subsequent runs will be faster.
+
+============================================================

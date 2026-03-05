@@ -16,10 +16,13 @@ from PyInstaller.utils.hooks import collect_submodules, collect_data_files, coll
 # Collect all torch_geometric submodules (many are dynamically imported)
 torch_geo_hiddenimports = collect_submodules('torch_geometric')
 
-# Collect torch submodules needed at runtime
-torch_hiddenimports = collect_submodules('torch')
+# Collect torch submodules needed at runtime (exclude dynamo/inductor - not needed for inference)
+torch_hiddenimports = [
+    m for m in collect_submodules('torch')
+    if not any(x in m for x in ['_dynamo', '_inductor', '_numpy', 'torch.testing', 'torch.utils.tensorboard'])
+]
 
-# Collect torch_geometric source files (TorchScript needs .py source access)
+# Collect data files
 torch_geo_datas = collect_data_files('torch_geometric', include_py_files=True)
 torch_datas = collect_data_files('torch', include_py_files=True)
 
@@ -92,21 +95,29 @@ pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 exe = EXE(
     pyz,
     a.scripts,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
     [],
+    exclude_binaries=True,
     name='wallet_analyzer',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,            # Enable UPX compression
+    upx=True,
     upx_exclude=[],
-    runtime_tmpdir=None,
-    console=True,         # Console app (not windowed)
+    console=True,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+)
+
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.zipfiles,
+    a.datas,
+    strip=False,
+    upx=True,
+    upx_exclude=[],
+    name='wallet_analyzer',
 )

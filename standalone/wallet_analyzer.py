@@ -457,6 +457,30 @@ class EgoGraphBuilder:
 # =============================================================================
 
 
+MODEL_DOWNLOAD_URL = (
+    "https://github.com/NehorayChalfon0166/final_project/releases/download/v1.0.0/gnn_model.pt"
+)
+
+
+def download_model(dest_path: str) -> str:
+    """Download the trained GNN model from GitHub Releases."""
+    print(f"\n  Model not found locally. Downloading from GitHub Releases...")
+    os.makedirs(os.path.dirname(dest_path) or ".", exist_ok=True)
+    resp = requests.get(MODEL_DOWNLOAD_URL, stream=True, timeout=60)
+    resp.raise_for_status()
+    total = int(resp.headers.get("content-length", 0))
+    downloaded = 0
+    with open(dest_path, "wb") as f:
+        for chunk in resp.iter_content(chunk_size=8192):
+            f.write(chunk)
+            downloaded += len(chunk)
+            if total:
+                pct = downloaded * 100 // total
+                print(f"\r  Downloading model... {pct}%", end="", flush=True)
+    print(f"\r  Model downloaded ({downloaded // 1024} KB)           ")
+    return dest_path
+
+
 def get_model_path(model_arg: str | None) -> str:
     """Resolve the model path — works both as a script and as a frozen PyInstaller exe."""
     candidates: list[str] = []
@@ -480,10 +504,9 @@ def get_model_path(model_arg: str | None) -> str:
         if os.path.isfile(path):
             return path
 
-    raise FileNotFoundError(
-        "Could not find model file. Tried:\n  " + "\n  ".join(candidates)
-        + "\n\nPlease provide the path with --model PATH"
-    )
+    # Model not found locally — auto-download to standalone/outputs/
+    default_path = os.path.join(script_dir, "outputs", "gnn_model.pt")
+    return download_model(default_path)
 
 
 def fetch_transactions(address: str) -> List[Dict]:
@@ -660,8 +683,8 @@ def plot_tx_volume(transactions: List[Dict], address: str, output_dir: str) -> s
             continue
 
         # Week key
-        from datetime import datetime, timedelta
-        dt = datetime.utcfromtimestamp(tx_time)
+        from datetime import datetime, timedelta, timezone
+        dt = datetime.fromtimestamp(tx_time, tz=timezone.utc)
         # Start of week (Monday)
         week_start = dt - timedelta(days=dt.weekday())
         week_key = week_start.strftime("%Y-%m-%d")
@@ -894,7 +917,7 @@ def print_results(
     print("  Top Features:")
     for i, (name, val) in enumerate(sorted_feats[:6], 1):
         bar_len = int((val / max(max_val, 0.01)) * 20)
-        bar = "\u2588" * bar_len
+        bar = "#" * bar_len
         print(f"  {i}. {name:<{max_name_len}}  {val:>5.1f}%  {bar}")
 
     print()
@@ -913,45 +936,8 @@ def print_results(
 # =============================================================================
 
 
-def main():
-    parser = argparse.ArgumentParser(
-        description="Bitcoin Wallet Risk Analyzer — GNN-based classification",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=(
-            "Examples:\n"
-            "  python wallet_analyzer.py 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa\n"
-            "  python wallet_analyzer.py --model my_model.pt bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh\n"
-            "  python wallet_analyzer.py --no-charts 3FZbgi29cpjq2GjdwV8eyHuJJnkLtktZc5\n"
-        ),
-    )
-    parser.add_argument("address", nargs="?", default=None,
-                        help="Bitcoin wallet address to analyze")
-    parser.add_argument("--model", default=None,
-                        help="Path to GNN model file (.pt)")
-    parser.add_argument("--output-dir", default=".",
-                        help="Directory to save charts (default: current dir)")
-    parser.add_argument("--no-charts", action="store_true",
-                        help="Skip chart generation")
-    parser.add_argument("--open-charts", action="store_true",
-                        help="Open charts after saving (macOS/Linux: xdg-open / open)")
-
-    args = parser.parse_args()
-
-    print_header()
-
-    # Interactive prompt if no address provided
-    address = args.address
-    if not address:
-        try:
-            address = input("\n  Enter Bitcoin wallet address: ").strip()
-        except (EOFError, KeyboardInterrupt):
-            print("\n  Cancelled.")
-            sys.exit(0)
-
-    if not address:
-        print("\n  Error: No address provided.")
-        sys.exit(1)
-
+def analyze_address(address: str, args) -> None:
+    """Run full analysis pipeline for a single address."""
     print(f"  Wallet: {address}\n")
 
     # ------------------------------------------------------------------
@@ -965,14 +951,14 @@ def main():
         print(f"Found {num_txs} transactions")
     except ValueError as e:
         print(f"\n  Error: {e}")
-        sys.exit(1)
+        return
     except ConnectionError as e:
         print(f"\n  Error: {e}")
-        sys.exit(1)
+        return
 
     if num_txs == 0:
         print("  No transactions found for this address. Cannot classify.")
-        sys.exit(0)
+        return
 
     # ------------------------------------------------------------------
     # Step 2: Build ego-graph
@@ -996,10 +982,10 @@ def main():
         print("Done")
     except FileNotFoundError as e:
         print(f"\n  Error: {e}")
-        sys.exit(1)
+        return
     except Exception as e:
         print(f"\n  Error during inference: {e}")
-        sys.exit(1)
+        return
 
     # ------------------------------------------------------------------
     # Step 4: Feature importance
@@ -1028,7 +1014,7 @@ def main():
     output_dir = os.path.join(base_dir, "analyses", addr_short)
     os.makedirs(output_dir, exist_ok=True)
 
-    if not args.no_charts:
+    if args.save_charts or args.open_charts:
         try:
             chart_paths.append(plot_feature_importance(importance, output_dir))
             chart_paths.append(plot_tx_volume(transactions, address, output_dir))
@@ -1065,6 +1051,66 @@ def main():
                     os.startfile(path)
             except Exception:
                 pass
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Bitcoin Wallet Risk Analyzer — GNN-based classification",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=(
+            "Examples:\n"
+            "  python wallet_analyzer.py 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa\n"
+            "  python wallet_analyzer.py --save-charts bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh\n"
+            "  python wallet_analyzer.py --model my_model.pt 3FZbgi29cpjq2GjdwV8eyHuJJnkLtktZc5\n"
+        ),
+    )
+    parser.add_argument("address", nargs="?", default=None,
+                        help="Bitcoin wallet address to analyze")
+    parser.add_argument("--model", default=None,
+                        help="Path to GNN model file (.pt)")
+    parser.add_argument("--output-dir", default=".",
+                        help="Directory to save charts (default: current dir)")
+    parser.add_argument("--save-charts", action="store_true",
+                        help="Save charts (risk gauge, feature importance, tx volume)")
+    parser.add_argument("--open-charts", action="store_true",
+                        help="Save and open charts after analysis")
+
+    args = parser.parse_args()
+
+    print_header()
+
+    # If address provided via command line, analyze it then enter interactive loop
+    if args.address:
+        analyze_address(args.address, args)
+    else:
+        # First prompt
+        try:
+            address = input("\n  Enter Bitcoin wallet address (or 'q' to quit): ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print("\n  Goodbye!")
+            sys.exit(0)
+
+        if not address or address.lower() == 'q':
+            print("\n  Goodbye!")
+            sys.exit(0)
+
+        analyze_address(address, args)
+
+    # Interactive loop - keep asking for more addresses
+    while True:
+        try:
+            print()
+            address = input("  Enter another address (or 'q' to quit): ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print("\n\n  Goodbye!")
+            break
+
+        if not address or address.lower() == 'q':
+            print("\n  Goodbye!")
+            break
+
+        print_header()
+        analyze_address(address, args)
 
 
 if __name__ == "__main__":
