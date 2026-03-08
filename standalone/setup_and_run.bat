@@ -57,7 +57,7 @@ REM Create venv if it doesn't exist
 if not exist "%VENV_DIR%\Scripts\activate.bat" (
     echo.
     echo  First run - setting up environment...
-    echo  [1/3] Creating virtual environment...
+    echo  [1/4] Creating virtual environment...
     %PYTHON_CMD% -m venv %VENV_DIR%
     if %ERRORLEVEL% neq 0 (
         echo  ERROR: Failed to create virtual environment.
@@ -65,14 +65,16 @@ if not exist "%VENV_DIR%\Scripts\activate.bat" (
         exit /b 1
     )
 
-    echo  [2/3] Upgrading pip...
+    echo  [2/4] Upgrading pip...
     call %VENV_DIR%\Scripts\activate.bat
     python -m pip install --upgrade pip --quiet
 
-    echo  [3/3] Installing dependencies, this may take a few minutes...
+    echo  [3/4] Installing numpy...
+    pip install numpy --quiet
+    echo  [4/4] Installing dependencies, this may take a few minutes...
     pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu --quiet
     pip install torch-geometric --quiet
-    pip install requests matplotlib numpy --quiet
+    pip install requests matplotlib --quiet
 
     if %ERRORLEVEL% neq 0 (
         echo  ERROR: Failed to install dependencies.
