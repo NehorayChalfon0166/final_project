@@ -1,5 +1,7 @@
-# Ignore data directory (large files)
-data/
+# Ignore data directory (large files) but keep folder structure
+data/*
+!data/**/
+!data/**/.gitkeep
 Real_Cats_data/
 Elipticpp_Data/
 
@@ -10,8 +12,10 @@ src/features/output/feature_columns.txt
 # Outputs directory
 # outputs/
 
-# Graph data (generated)
-graph_data/
+# Graph data (generated) but keep folder structure
+graph_data/*
+!graph_data/**/
+!graph_data/**/.gitkeep
 
 # Handed in presentations
 Handed_in/
