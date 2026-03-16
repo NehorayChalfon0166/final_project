@@ -29,7 +29,11 @@ async def shutdown_event():
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify allowed origins
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -46,6 +50,9 @@ async def root():
 
 if __name__ == "__main__":
     import uvicorn
-    print("Starting server on http://localhost:8000")
-    print("Docs available at http://localhost:8000/docs")
-    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
+    debug = os.environ.get("DEBUG", "true").lower() == "true"
+    host = os.environ.get("API_HOST", "127.0.0.1")
+    port = int(os.environ.get("API_PORT", "8000"))
+    print(f"Starting server on http://{host}:{port}")
+    print(f"Docs available at http://{host}:{port}/docs")
+    uvicorn.run("main:app", host=host, port=port, reload=debug)

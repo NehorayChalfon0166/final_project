@@ -1,4 +1,4 @@
-# Model Feature Mismatch - Fix Required
+# Model Feature Mismatch - RESOLVED
 
 ## Problem
 
@@ -98,3 +98,6 @@ num_node_features: int = 12,  # 12 features matching saved model
 
 ## Date Identified
 January 15, 2026
+
+## Resolution
+Fixed by reverting to 12 features (Option B). The `src/graph/config.py` now has 12 features with 7 correlated features removed, and `src/models/optimal_gnn.py` defaults to `num_node_features=12`.

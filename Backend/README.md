@@ -7,7 +7,7 @@ FastAPI backend for real-time cryptocurrency wallet analysis and risk classifica
 - **Real-time Wallet Analysis**: Fetch live transaction data from blockchain
 - **GNN-Based Risk Assessment**: Binary classification (Criminal/Benign)
 - **Transaction Graph Construction**: Build directed graphs from wallet transactions
-- **Feature Engineering**: Compute 18 behavioral features from transaction patterns
+- **Feature Engineering**: Compute 12 behavioral features from transaction patterns
 - **RESTful API**: Easy integration with frontend applications
 
 ## 🚀 Quick Start
@@ -50,7 +50,7 @@ Analyze a cryptocurrency wallet address for risk assessment.
   - Bitcoin: `1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa`
   - Ethereum: `0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb`
   - Generic hex: 40-64 character hex string
-- `model_path` (query, optional) - Path to trained model (default: `../models/crypto_gnn_model.pt`)
+- `model_path` (query, optional) - Path to trained model (default: `../outputs/gnn_model.pt`)
 
 **Response:**
 ```json
@@ -60,7 +60,7 @@ Analyze a cryptocurrency wallet address for risk assessment.
   "nodes_count": 50,
   "edges_count": 51,
   "graph_data": {
-    "x_shape": [50, 18],
+    "x_shape": [50, 12],
     "y_shape": [50],
     "edge_index_shape": [2, 51],
     "edge_attr_shape": [51, 1]
@@ -150,28 +150,24 @@ Backend/
 5. **GNN Inference** - Run Graph Attention Network model
 6. **Classification** - Binary output (Criminal/Benign)
 
-### Model Architecture (CryptoGNN)
+### Model Architecture (OptimalBitcoinGNN)
 
-```python
-class CryptoGNN(torch.nn.Module):
-    """Graph Attention Network for wallet risk classification"""
-    - Input: 18 node features
-    - GATv2Conv Layer 1 (2 attention heads, 32 hidden channels)
-    - Dropout (0.3)
-    - GATv2Conv Layer 2 (1 attention head, 32 hidden channels)  
-    - Linear Classifier (2 output classes: benign, criminal)
+```
+3-layer GATv2 with residual connections:
+    - Input: 12 node features
+    - GATv2Conv Layer 1 (4 attention heads, 64 hidden → 256 output)
+    - GATv2Conv Layer 2 (4 attention heads, 256 → 256 + residual)
+    - GATv2Conv Layer 3 (2 attention heads, 256 → 64)
+    - Classifier: Linear(64 → 32 → 2)
 ```
 
-### Feature Set (18 Features)
+### Feature Set (12 Features)
 
-From REAL-CATS dataset:
-- **Balance Features**: balance, total_received_USD, total_sent_USD
-- **Transaction Fees**: transaction_fee, transaction_fee_Variance
-- **Amount Statistics**: max_sent_amount, min_sent_amount
-- **Temporal Features**: lifetime, activity_w, activity_d, activity_time
-- **Transaction Counts**: transaction_number, payment_transactions, receipt_transactions
-- **Slots**: total_output_slots, total_input_slots
-- **Variance**: received_Variance_USD, sent_Variance_USD
+Selected from REAL-CATS and Elliptic++ datasets (7 correlated features removed):
+- **Temporal**: lifetime_seconds, activity_rate, blocks_btwn_txs_mean
+- **Transaction Flow**: in_out_balance, send_receive_ratio, total_txs
+- **Fee Behavior**: fee_per_tx, fee_share_mean
+- **Amount Characteristics**: avg_tx_size, tx_size_range, max_sent, max_received
 
 ## 🔧 Configuration
 
@@ -187,12 +183,7 @@ DEBUG=True
 
 ### Model Path
 
-Default model location: `../models/crypto_gnn_model.pt`
-
-Override via query parameter:
-```
-GET /api/v1/analyze/{address}?model_path=/custom/path/model.pt
-```
+Default model location: `../outputs/gnn_model.pt`
 
 ## 📝 Development
 
@@ -239,15 +230,14 @@ Import the OpenAPI spec from `openapi.yaml` or use the Swagger UI at `/docs`.
 ## 📚 Additional Resources
 
 - **Main Project README**: [../README.md](../README.md)
-- **REAL-CATS Dataset Info**: [../README_cats.md](../README_cats.md)
-- **Elliptic++ Dataset Info**: [../README_eliptic.md](../README_eliptic.md)
-- **EDA Findings**: [../eda/FINDINGS.md](../eda/FINDINGS.md)
+- **REAL-CATS Dataset**: https://github.com/sjdseu/Real-CATS
+- **Elliptic++ Dataset**: https://github.com/git-disl/EllipticPlusPlus
 
 ## ⚠️ Important Notes
 
 - API rate limit: 1 request/second for mempool.space
 - Analysis time: ~2-5 seconds per wallet (depends on transaction count)
-- Model requires 18 input features (matches REAL-CATS training data)
+- Model requires 12 input features (selected from REAL-CATS + Elliptic++ data)
 - Classification threshold: risk_score > 0.5 = criminal
 
 ## 📄 License

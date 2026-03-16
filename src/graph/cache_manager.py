@@ -78,6 +78,7 @@ class CacheManager:
         graph_path = self.get_graph_path(address)
         if os.path.exists(graph_path):
             try:
+                # weights_only=False required for PyG Data objects
                 return torch.load(graph_path, weights_only=False)
             except Exception:
                 return None

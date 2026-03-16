@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from typing import Optional, Dict, List, Any
 import requests
 import random
+import os
 from routes.utils.model_fit_utils import analyze_wallet_pipeline, fetch_transactions_mempool, compute_feature_importance
 
 router = APIRouter()
@@ -57,23 +58,21 @@ def fetch_address_stats(address: str) -> Dict[str, Any]:
         if response.status_code == 200:
             return response.json()
         return {}
-    except:
+    except (requests.RequestException, ValueError, KeyError) as e:
+        print(f"Error fetching address stats: {e}")
         return {}
 
 
-async def validate_wallet_address(address: str) -> bool:
-    """Validate Bitcoin wallet address using mempool.space API"""
-    try:
-        response = requests.get(
-            f"https://mempool.space/api/v1/validate-address/{address}",
-            timeout=5
-        )
-        if response.status_code == 200:
-            data = response.json()
-            return data.get('isvalid', False)
-        return False
-    except:
-        return False
+def is_valid_bitcoin_address(address: str) -> bool:
+    """Basic format validation for Bitcoin addresses."""
+    import re
+    # Base58 (P2PKH/P2SH): starts with 1 or 3, 25-34 chars
+    # Bech32 (SegWit): starts with bc1, 42-62 chars
+    patterns = [
+        r'^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$',
+        r'^bc1[a-z0-9]{39,59}$',
+    ]
+    return any(re.match(p, address) for p in patterns)
 
 
 @router.get("/random")
@@ -143,17 +142,23 @@ async def get_random_wallet():
 
 
 @router.get("/analyze/{address}", response_model=AnalysisResult)
-async def analyze_wallet(address: str, model_path: Optional[str] = "../outputs/gnn_model.pt"):
+async def analyze_wallet(address: str):
     """
     Analyze a wallet address: fetch transactions, preprocess, and run inference.
-    
+
     Args:
         address: Wallet address to analyze
-        model_path: Optional path to saved model (defaults to gnn_model.pt)
-    
+
     Returns:
         Analysis results with graph statistics and predictions (JSON)
     """
+    if not is_valid_bitcoin_address(address):
+        raise HTTPException(status_code=400, detail="Invalid Bitcoin address format")
+
+    # Use server-side model path resolution
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+    model_path = os.path.join(project_root, 'outputs', 'gnn_model.pt')
+
     try:
         result = analyze_wallet_pipeline(address, model_path)
         return AnalysisResult(**result)
@@ -165,13 +170,15 @@ async def analyze_wallet(address: str, model_path: Optional[str] = "../outputs/g
 async def get_wallet_info(address: str):
     """
     Fetch transaction info for a wallet address.
-    
+
     Args:
         address: Wallet address to fetch transactions for
-    
+
     Returns:
         Wallet info with transaction list (JSON)
     """
+    if not is_valid_bitcoin_address(address):
+        raise HTTPException(status_code=400, detail="Invalid Bitcoin address format")
     try:
         # Fetch transactions and address stats
         transactions = fetch_transactions_mempool(address)
@@ -213,13 +220,15 @@ async def get_wallet_info(address: str):
 async def get_feature_importance(address: str):
     """
     Compute feature importance for a specific wallet address.
-    
+
     Args:
         address: Wallet address to compute feature importance for
-    
+
     Returns:
         Feature importance scores for each feature
     """
+    if not is_valid_bitcoin_address(address):
+        raise HTTPException(status_code=400, detail="Invalid Bitcoin address format")
     result = compute_feature_importance(address)
     
     if result["status"] == "error":

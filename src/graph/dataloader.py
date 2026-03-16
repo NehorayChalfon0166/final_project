@@ -66,6 +66,7 @@ class EgoGraphDataset(Dataset):
         """
         address = self.addresses[idx]
         graph_path = os.path.join(self.graphs_dir, f"{address}.pt")
+        # weights_only=False required for PyG Data objects (contains custom classes)
         data = torch.load(graph_path, weights_only=False)
         return data
 

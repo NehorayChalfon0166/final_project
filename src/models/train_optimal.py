@@ -185,6 +185,7 @@ def save_checkpoint(model, optimizer, scheduler, epoch, history, best_f1, best_e
 
 def load_checkpoint(path, model, optimizer, scheduler):
     """Load training checkpoint."""
+    # weights_only=False required for checkpoint containing optimizer/scheduler state
     checkpoint = torch.load(path, weights_only=False)
     model.load_state_dict(checkpoint['model_state_dict'])
     optimizer.load_state_dict(checkpoint['optimizer_state_dict'])

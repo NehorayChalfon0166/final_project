@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:8000/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -26,11 +26,9 @@ export const ping = async () => {
 };
 
 // Wallet analysis
-export const analyzeWallet = async (address, modelPath = '../outputs/gnn_model.pt') => {
+export const analyzeWallet = async (address) => {
   try {
-    const response = await api.get(`/analyze/${address}`, {
-      params: { model_path: modelPath }
-    });
+    const response = await api.get(`/analyze/${address}`);
     return response.data;
   } catch (error) {
     if (error.response) {
