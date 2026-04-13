@@ -404,11 +404,36 @@ class EgoGraphBuilder:
                 total_received += received_in_tx
                 received_amounts.append(received_in_tx)
 
+        # Convert satoshis to BTC to match training data scale
+        SAT_TO_BTC = 1e-8
+        total_sent *= SAT_TO_BTC
+        total_received *= SAT_TO_BTC
+        total_fees *= SAT_TO_BTC
+        sent_amounts = [a * SAT_TO_BTC for a in sent_amounts]
+        received_amounts = [a * SAT_TO_BTC for a in received_amounts]
+
         total_txs = num_send_txs + num_receive_txs
         lifetime_seconds = (max(tx_times) - min(tx_times)) if len(tx_times) >= 2 else 0
-        activity_rate = total_txs / max(lifetime_seconds, 1)
-        send_receive_ratio = total_sent / max(total_received, 1)
-        in_out_balance = num_receive_txs / max(num_send_txs, 1)
+
+        # Activity rate (txs per day, clipped to match training)
+        seconds_per_day = 86400
+        activity_rate = np.clip(
+            (total_txs / max(lifetime_seconds, 1)) * seconds_per_day,
+            0, 1000
+        )
+
+        # Send/receive ratio (clipped to match training)
+        send_receive_ratio = np.clip(
+            total_sent / max(total_received, 1e-10),
+            0, 100
+        )
+
+        # In/out balance (clipped to match training)
+        in_out_balance = np.clip(
+            num_receive_txs / max(num_send_txs, 1e-10),
+            0, 100
+        )
+
         fee_per_tx = total_fees / max(total_txs, 1)
 
         if len(tx_times) >= 2:
@@ -419,11 +444,17 @@ class EgoGraphBuilder:
             blocks_btwn_txs_mean = 0
 
         total_transacted = total_sent + total_received
-        fee_share_mean = total_fees / max(total_transacted, 1)
+
+        # Fee share mean (clipped to match training)
+        fee_share_mean = np.clip(
+            total_fees / max(total_transacted, 1e-10),
+            0, 1
+        )
+
         avg_tx_size = total_transacted / max(total_txs, 1)
 
-        all_amounts = sent_amounts + received_amounts
-        tx_size_range = (max(all_amounts) - min(all_amounts)) if all_amounts else 0
+        # Tx size range (sent only, matching training: max_sent - min_sent)
+        tx_size_range = (max(sent_amounts) - min(sent_amounts)) if sent_amounts else 0
 
         max_sent = max(sent_amounts) if sent_amounts else 0
         max_received = max(received_amounts) if received_amounts else 0

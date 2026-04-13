@@ -159,7 +159,7 @@ class MempoolFetcher:
         progress_callback: Optional[Callable[[int, int, FetchResult], None]] = None
     ) -> List[FetchResult]:
         """
-        Fetch transactions for multiple addresses concurrently.
+        Fetch transactions for addresses sequentially to respect rate limits.
 
         Args:
             addresses: List of addresses to fetch
@@ -171,20 +171,15 @@ class MempoolFetcher:
         connector = aiohttp.TCPConnector(limit=CONCURRENT_REQUESTS)
         headers = {'User-Agent': 'BitcoinWalletAnalyzer/1.0'}
 
+        results = []
         async with aiohttp.ClientSession(connector=connector, headers=headers) as session:
-            tasks = [
-                self.fetch_address_transactions(session, addr)
-                for addr in addresses
-            ]
-
-            results = []
-            for i, coro in enumerate(asyncio.as_completed(tasks)):
-                result = await coro
+            for i, addr in enumerate(addresses):
+                result = await self.fetch_address_transactions(session, addr)
                 results.append(result)
                 if progress_callback:
                     progress_callback(i + 1, len(addresses), result)
 
-            return results
+        return results
 
     def fetch_batch_sync(
         self,
