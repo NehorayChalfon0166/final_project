@@ -173,7 +173,7 @@ def step_train_gnn(epochs: int = 100, batch_size: int = 64):
         optimizer, max_lr=0.005, epochs=epochs,
         steps_per_epoch=len(train_loader), pct_start=0.1
     )
-    criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
+    criterion = nn.CrossEntropyLoss(label_smoothing=0.0)
     early_stopping = EarlyStopping(patience=20, mode='max')
 
     best_f1 = 0
@@ -201,7 +201,7 @@ def step_train_gnn(epochs: int = 100, batch_size: int = 64):
                           best_f1, best_epoch, argparse.Namespace(
                               epochs=epochs, batch_size=batch_size, lr=0.001,
                               max_lr=0.005, weight_decay=0.01, patience=20,
-                              hidden_dim=64, use_focal_loss=False, label_smoothing=0.1,
+                              hidden_dim=64, use_focal_loss=False, label_smoothing=0.0,
                               save_path=model_path, log_interval=10,
                               checkpoint_interval=20, resume=None
                           ), os.path.join(OUTPUTS_DIR, 'gnn_checkpoint.pt'))
@@ -213,6 +213,22 @@ def step_train_gnn(epochs: int = 100, batch_size: int = 64):
     model.load_state_dict(torch.load(model_path, weights_only=True))
     final_metrics = evaluate(model, test_loader, device)
 
+    # Temperature scaling calibration
+    from src.models.optimal_gnn import TemperatureScaler
+    from src.models.train_optimal import get_center_labels
+
+    logger.info("\nCalibrating temperature scaling on test set...")
+    temp_scaler = TemperatureScaler.calibrate(
+        model, test_loader, device, get_center_labels
+    )
+    temp_value = temp_scaler.temperature.item()
+    logger.info(f"  Optimal temperature: {temp_value:.3f}")
+
+    # Save temperature alongside model
+    temp_path = os.path.join(OUTPUTS_DIR, 'temperature.pt')
+    torch.save({'temperature': temp_value}, temp_path)
+    logger.info(f"  Temperature saved to: {temp_path}")
+
     # Save training history
     history_path = os.path.join(OUTPUTS_DIR, 'gnn_training_history.json')
     with open(history_path, 'w') as f:
@@ -221,8 +237,9 @@ def step_train_gnn(epochs: int = 100, batch_size: int = 64):
             'final_metrics': final_metrics,
             'best_epoch': best_epoch,
             'epochs_trained': epoch + 1,
+            'temperature': temp_value,
             'timestamp': datetime.now().isoformat()
-        }, f, indent=2, cls=NpEncoder)  # <--- Fixed: Added cls=NpEncoder
+        }, f, indent=2, cls=NpEncoder)
 
     logger.info(f"\nGNN Final Results:")
     logger.info(f"  Best Epoch: {best_epoch}")

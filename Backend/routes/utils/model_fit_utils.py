@@ -17,20 +17,21 @@ from src.evaluation.interpretability import ModelInterpreter
 def fetch_transactions_mempool(wallet_address: str) -> List[Dict]:
     """
     Fetch raw transactions for a wallet address from Mempool API.
-    
+    Returns up to ~50 most recent transactions (single page).
+
     Args:
         wallet_address: The Bitcoin wallet address
-        
+
     Returns:
         List of raw transaction dictionaries
     """
     print(f"   Fetching transactions from Mempool.space for {wallet_address}...")
     headers = {'User-Agent': 'Mozilla/5.0'}
-    
+
     try:
         url = f"https://mempool.space/api/address/{wallet_address}/txs"
         r = requests.get(url, headers=headers, timeout=30)
-        
+
         if r.status_code == 200:
             transactions = r.json()
             print(f"   Found {len(transactions)} transactions")
@@ -38,7 +39,7 @@ def fetch_transactions_mempool(wallet_address: str) -> List[Dict]:
         else:
             print(f"   API returned status {r.status_code}")
             return []
-            
+
     except Exception as e:
         print(f"   Error fetching transactions: {e}")
         return []
@@ -133,20 +134,31 @@ def analyze_wallet_pipeline(wallet_address: str, model_path: str = None):
             model.to(device)
             model.eval()
             
+            # Load temperature scaling if available
+            temperature = 1.0
+            temp_path = os.path.join(os.path.dirname(resolved_path), 'temperature.pt')
+            if os.path.exists(temp_path):
+                temp_data = torch.load(temp_path, map_location=device, weights_only=True)
+                temperature = temp_data['temperature']
+                print(f"   Using temperature scaling: T={temperature:.3f}")
+
             with torch.no_grad():
                 x = graph_data.x.to(device)
                 edge_index = graph_data.edge_index.to(device)
                 edge_attr = graph_data.edge_attr.to(device) if graph_data.edge_attr.numel() > 0 else None
-                
+
                 # Create batch tensor (all nodes belong to batch 0)
                 batch = torch.zeros(graph_data.num_nodes, dtype=torch.long, device=device)
-                
+
                 # Model expects batch parameter
                 output = model(x, edge_index, edge_attr, batch)
-                
+
                 # Get prediction for the queried wallet (node 0)
                 logits = output[0].cpu()
-                
+
+                # Apply temperature scaling before softmax
+                logits = logits / temperature
+
                 # Apply softmax to convert logits to probabilities
                 probabilities = F.softmax(logits, dim=0).numpy()
                 

@@ -112,7 +112,7 @@ CLR_GRAY_700 = "#374151"
 # =============================================================================
 
 class OptimalBitcoinGNN(nn.Module):
-    """3-layer GATv2Conv with residual connections for Bitcoin wallet classification."""
+    """3-layer GATv2Conv with ghost node handling, hybrid readout, and DropEdge."""
 
     def __init__(
         self,
@@ -124,11 +124,18 @@ class OptimalBitcoinGNN(nn.Module):
         num_heads_3: int = 2,
         dropout: float = 0.2,
         final_dropout: float = 0.3,
+        drop_edge_rate: float = 0.1,
     ):
         super().__init__()
         self.num_node_features = num_node_features
         self.hidden_dim = hidden_dim
         self.dropout = dropout
+        self.drop_edge_rate = drop_edge_rate
+
+        # Ghost node handling
+        self.ghost_embedding = nn.Parameter(torch.randn(1, num_node_features) * 0.01)
+        self.node_type_embedding = nn.Embedding(2, 8)
+        self.input_proj = nn.Linear(num_node_features + 1 + 8, num_node_features)
 
         # Layer 1: 12 -> 64*4 = 256
         self.conv1 = GATv2Conv(
@@ -169,20 +176,48 @@ class OptimalBitcoinGNN(nn.Module):
         )
         self.norm3 = LayerNorm((hidden_dim // 2) * num_heads_3)
 
-        # Classifier: 64 -> 32 -> 2
-        classifier_input_dim = (hidden_dim // 2) * num_heads_3
+        # Initial connection residual
+        final_gnn_dim = (hidden_dim // 2) * num_heads_3
+        self.initial_proj = nn.Linear(num_node_features, final_gnn_dim)
+
+        # Hybrid readout classifier: center (64) + mean (64) + max (64) = 192
+        classifier_input_dim = final_gnn_dim * 3
         self.classifier = nn.Sequential(
-            nn.Linear(classifier_input_dim, hidden_dim // 2),
+            nn.Linear(classifier_input_dim, hidden_dim),
             nn.ELU(),
             nn.Dropout(final_dropout),
-            nn.Linear(hidden_dim // 2, 2),
+            nn.Linear(hidden_dim, 2),
         )
         self.dropout_layer = nn.Dropout(dropout)
         self.dropout_light = nn.Dropout(dropout * 0.5)
 
+    def _prepare_node_features(self, x):
+        has_features = (x.abs().sum(dim=1) > 0).float()
+        ghost_mask = has_features == 0
+        if ghost_mask.any():
+            x = x.clone()
+            x[ghost_mask] = self.ghost_embedding.expand(ghost_mask.sum(), -1)
+        node_types = ghost_mask.long()
+        type_emb = self.node_type_embedding(node_types)
+        x_augmented = torch.cat([x, has_features.unsqueeze(1), type_emb], dim=1)
+        return self.input_proj(x_augmented)
+
     def forward(self, x, edge_index, edge_attr, batch):
+        from torch_geometric.nn import global_mean_pool, global_max_pool
+        from torch_geometric.utils import dropout_edge
+
+        x = self._prepare_node_features(x)
+        x_init = x
+
+        if self.training and self.drop_edge_rate > 0 and edge_index.size(1) > 0:
+            edge_index_drop, edge_mask = dropout_edge(edge_index, p=self.drop_edge_rate, training=self.training)
+            edge_attr_drop = edge_attr[edge_mask] if edge_attr is not None else None
+        else:
+            edge_index_drop = edge_index
+            edge_attr_drop = edge_attr
+
         # Layer 1
-        h = self.conv1(x, edge_index, edge_attr=edge_attr)
+        h = self.conv1(x, edge_index_drop, edge_attr=edge_attr_drop)
         h = self.norm1(h)
         h = F.elu(h)
         h = self.dropout_layer(h)
@@ -190,24 +225,28 @@ class OptimalBitcoinGNN(nn.Module):
         h_residual = h
 
         # Layer 2
-        h = self.conv2(h, edge_index, edge_attr=edge_attr)
+        h = self.conv2(h, edge_index_drop, edge_attr=edge_attr_drop)
         h = self.norm2(h)
         h = F.elu(h)
         h = self.dropout_layer(h)
-
-        # Residual connection
         h = h + self.residual_proj(h_residual)
 
-        # Layer 3
+        # Layer 3 (full edges)
         h = self.conv3(h, edge_index, edge_attr=edge_attr)
         h = self.norm3(h)
         h = F.elu(h)
         h = self.dropout_light(h)
 
-        # Extract center node embeddings
-        h = self._get_center_embeddings(h, batch)
+        # Initial connection
+        h = h + self.initial_proj(x_init)
 
-        return self.classifier(h)
+        # Hybrid readout
+        center_emb = self._get_center_embeddings(h, batch)
+        mean_emb = global_mean_pool(h, batch)
+        max_emb = global_max_pool(h, batch)
+        h_readout = torch.cat([center_emb, mean_emb, max_emb], dim=1)
+
+        return self.classifier(h_readout)
 
     def _get_center_embeddings(self, h, batch):
         batch_size = batch.max().item() + 1
@@ -555,7 +594,7 @@ def get_model_path(model_arg: str | None) -> str:
 
 
 def fetch_transactions(address: str) -> List[Dict]:
-    """Fetch confirmed transactions from mempool.space API."""
+    """Fetch confirmed transactions from mempool.space API (single page, ~50 txs)."""
     url = f"{MEMPOOL_API}/address/{address}/txs"
     try:
         r = requests.get(url, headers=HEADERS, timeout=30)
@@ -611,6 +650,13 @@ def run_inference(graph_data: Data, model_path: str) -> Dict:
     model.to(device)
     model.eval()
 
+    # Load temperature scaling if available
+    temperature = 1.0
+    temp_path = os.path.join(os.path.dirname(model_path), "temperature.pt")
+    if os.path.exists(temp_path):
+        temp_data = torch.load(temp_path, map_location=device, weights_only=True)
+        temperature = temp_data["temperature"]
+
     with torch.no_grad():
         x = graph_data.x.to(device)
         edge_index = graph_data.edge_index.to(device)
@@ -619,6 +665,7 @@ def run_inference(graph_data: Data, model_path: str) -> Dict:
 
         output = model(x, edge_index, edge_attr, batch)
         logits = output[0].cpu()
+        logits = logits / temperature
         probabilities = F.softmax(logits, dim=0).numpy()
 
         prob_benign = float(probabilities[0])

@@ -4,17 +4,18 @@ Optimal Bitcoin GNN Model
 3-layer GATv2Conv with residual connections for Bitcoin wallet classification.
 
 Architecture:
+    - Ghost node handling: learnable embeddings + node-type encoding
     - Layer 1: GATv2Conv (12 → 64, 4 heads) = 256 output
     - Layer 2: GATv2Conv (256 → 64, 4 heads) = 256 output + residual
     - Layer 3: GATv2Conv (256 → 32, 2 heads) = 64 output
-    - Classification: Linear(64 → 32 → 2)
-
-Expected performance: 92-94% accuracy (baseline: 89.86%)
+    - Hybrid readout: center node + global mean pool + global max pool
+    - Classification: Linear(192 → 64 → 2)
 """
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch_geometric.nn import GATv2Conv, LayerNorm
+from torch_geometric.nn import GATv2Conv, LayerNorm, global_mean_pool, global_max_pool
+from torch_geometric.utils import dropout_edge
 from torch_geometric.data import Batch
 
 
@@ -23,11 +24,14 @@ class OptimalBitcoinGNN(nn.Module):
     Optimized GATv2 model for cryptocurrency wallet classification.
 
     Features:
+    - Learnable ghost node embeddings (replaces zero features for neighbors)
+    - Node-type embedding (center vs ghost)
     - 3 GATv2Conv layers with multi-head attention
-    - Residual connection between layers 1 and 2
+    - Residual connections (layer 1→2 and initial→final)
     - LayerNorm for stability with variable graph sizes
     - ELU activation (smooth gradients)
-    - Progressive dropout (0.2 → 0.2 → 0.1 → 0.3)
+    - DropEdge regularization during training
+    - Hybrid readout: center node + global mean pool + global max pool
     - Edge feature utilization (3 features: amount, direction, timestamp)
     """
 
@@ -40,29 +44,24 @@ class OptimalBitcoinGNN(nn.Module):
         num_heads_2: int = 4,
         num_heads_3: int = 2,
         dropout: float = 0.2,
-        final_dropout: float = 0.3
+        final_dropout: float = 0.3,
+        drop_edge_rate: float = 0.1
     ):
-        """
-        Initialize the model.
-
-        Args:
-            num_node_features: Number of input node features (default: 12)
-            num_edge_features: Number of edge features (default: 3)
-            hidden_dim: Hidden dimension per head (default: 64)
-            num_heads_1: Attention heads in layer 1 (default: 4)
-            num_heads_2: Attention heads in layer 2 (default: 4)
-            num_heads_3: Attention heads in layer 3 (default: 2)
-            dropout: Dropout rate for GNN layers (default: 0.2)
-            final_dropout: Dropout rate for classifier (default: 0.3)
-        """
         super().__init__()
 
         self.num_node_features = num_node_features
         self.hidden_dim = hidden_dim
         self.dropout = dropout
+        self.drop_edge_rate = drop_edge_rate
+
+        # Ghost node handling: learnable embedding + node type
+        self.ghost_embedding = nn.Parameter(torch.randn(1, num_node_features) * 0.01)
+        self.node_type_embedding = nn.Embedding(2, 8)  # 0=center, 1=ghost
+
+        # Input projection: features (12) + has_features flag (1) + node_type (8) → 12
+        self.input_proj = nn.Linear(num_node_features + 1 + 8, num_node_features)
 
         # Layer 1: Initial feature transformation with attention
-        # Input: 12 → Output: 64 * 4 = 256
         self.conv1 = GATv2Conv(
             in_channels=num_node_features,
             out_channels=hidden_dim,
@@ -74,7 +73,6 @@ class OptimalBitcoinGNN(nn.Module):
         self.norm1 = LayerNorm(hidden_dim * num_heads_1)
 
         # Layer 2: Deep attention with residual
-        # Input: 256 → Output: 64 * 4 = 256
         self.conv2 = GATv2Conv(
             in_channels=hidden_dim * num_heads_1,
             out_channels=hidden_dim,
@@ -85,35 +83,58 @@ class OptimalBitcoinGNN(nn.Module):
         )
         self.norm2 = LayerNorm(hidden_dim * num_heads_2)
 
-        # Residual projection (dimensions match, but we keep it for flexibility)
+        # Residual projection
         self.residual_proj = nn.Linear(
             hidden_dim * num_heads_1,
             hidden_dim * num_heads_2
         )
 
         # Layer 3: Final attention aggregation
-        # Input: 256 → Output: 32 * 2 = 64
         self.conv3 = GATv2Conv(
             in_channels=hidden_dim * num_heads_2,
             out_channels=hidden_dim // 2,
             heads=num_heads_3,
             edge_dim=num_edge_features,
             concat=True,
-            dropout=dropout * 0.5  # Lighter dropout
+            dropout=dropout * 0.5
         )
         self.norm3 = LayerNorm((hidden_dim // 2) * num_heads_3)
 
-        # Classification head
-        classifier_input_dim = (hidden_dim // 2) * num_heads_3  # 64
+        # Initial connection residual: project input features to final GNN dim
+        final_gnn_dim = (hidden_dim // 2) * num_heads_3  # 64
+        self.initial_proj = nn.Linear(num_node_features, final_gnn_dim)
+
+        # Hybrid readout: center (64) + mean pool (64) + max pool (64) = 192
+        classifier_input_dim = final_gnn_dim * 3
         self.classifier = nn.Sequential(
-            nn.Linear(classifier_input_dim, hidden_dim // 2),  # 64 → 32
+            nn.Linear(classifier_input_dim, hidden_dim),  # 192 → 64
             nn.ELU(),
             nn.Dropout(final_dropout),
-            nn.Linear(hidden_dim // 2, 2)  # 32 → 2
+            nn.Linear(hidden_dim, 2)  # 64 → 2
         )
 
         self.dropout_layer = nn.Dropout(dropout)
         self.dropout_light = nn.Dropout(dropout * 0.5)
+
+    def _prepare_node_features(self, x):
+        """Replace zero-feature ghost nodes with learned embeddings and add node-type info."""
+        has_features = (x.abs().sum(dim=1) > 0).float()  # 1 for center, 0 for ghost
+
+        # Replace ghost node features with learnable embedding
+        ghost_mask = has_features == 0
+        if ghost_mask.any():
+            x = x.clone()
+            x[ghost_mask] = self.ghost_embedding.expand(ghost_mask.sum(), -1)
+
+        # Node type: 0=center (has features), 1=ghost
+        node_types = ghost_mask.long()
+        type_emb = self.node_type_embedding(node_types)
+
+        # Concatenate: [features, has_features_flag, type_embedding]
+        x_augmented = torch.cat([x, has_features.unsqueeze(1), type_emb], dim=1)
+
+        # Project back to original feature dim
+        return self.input_proj(x_augmented)
 
     def forward(self, x, edge_index, edge_attr, batch):
         """
@@ -128,8 +149,22 @@ class OptimalBitcoinGNN(nn.Module):
         Returns:
             Output logits [batch_size, 2]
         """
+        # Prepare node features (handle ghost nodes)
+        x = self._prepare_node_features(x)
+
+        # Save original features for initial connection
+        x_init = x
+
+        # DropEdge during training
+        if self.training and self.drop_edge_rate > 0 and edge_index.size(1) > 0:
+            edge_index_drop, edge_mask = dropout_edge(edge_index, p=self.drop_edge_rate, training=self.training)
+            edge_attr_drop = edge_attr[edge_mask] if edge_attr is not None else None
+        else:
+            edge_index_drop = edge_index
+            edge_attr_drop = edge_attr
+
         # Layer 1
-        h = self.conv1(x, edge_index, edge_attr=edge_attr)
+        h = self.conv1(x, edge_index_drop, edge_attr=edge_attr_drop)
         h = self.norm1(h)
         h = F.elu(h)
         h = self.dropout_layer(h)
@@ -138,7 +173,7 @@ class OptimalBitcoinGNN(nn.Module):
         h_residual = h
 
         # Layer 2
-        h = self.conv2(h, edge_index, edge_attr=edge_attr)
+        h = self.conv2(h, edge_index_drop, edge_attr=edge_attr_drop)
         h = self.norm2(h)
         h = F.elu(h)
         h = self.dropout_layer(h)
@@ -146,60 +181,44 @@ class OptimalBitcoinGNN(nn.Module):
         # Add residual connection
         h = h + self.residual_proj(h_residual)
 
-        # Layer 3
+        # Layer 3 (use full edges for final layer)
         h = self.conv3(h, edge_index, edge_attr=edge_attr)
         h = self.norm3(h)
         h = F.elu(h)
         h = self.dropout_light(h)
 
-        # Extract center node embeddings (node 0 of each graph)
-        h = self._get_center_embeddings(h, batch)
+        # Initial connection residual
+        h = h + self.initial_proj(x_init)
+
+        # Hybrid readout: center node + global mean pool + global max pool
+        center_emb = self._get_center_embeddings(h, batch)
+        mean_emb = global_mean_pool(h, batch)
+        max_emb = global_max_pool(h, batch)
+        h_readout = torch.cat([center_emb, mean_emb, max_emb], dim=1)
 
         # Classification
-        out = self.classifier(h)
+        out = self.classifier(h_readout)
 
         return out
 
     def _get_center_embeddings(self, h, batch):
-        """
-        Extract center node (index 0) embedding for each graph in batch.
-
-        In ego-graphs, the center node is always the first node (index 0)
-        of each graph.
-
-        Args:
-            h: Node embeddings [num_nodes, embedding_dim]
-            batch: Batch assignment [num_nodes]
-
-        Returns:
-            Center embeddings [batch_size, embedding_dim]
-        """
+        """Extract center node (index 0) embedding for each graph in batch."""
         batch_size = batch.max().item() + 1
         center_embeddings = []
 
-        # Find the start index of each graph
         for i in range(batch_size):
             mask = (batch == i)
             graph_nodes = h[mask]
-            center_embeddings.append(graph_nodes[0])  # Center is always first
+            center_embeddings.append(graph_nodes[0])
 
         return torch.stack(center_embeddings)
 
     def get_attention_weights(self, x, edge_index, edge_attr):
-        """
-        Get attention weights from all layers (for interpretability).
+        """Get attention weights from all layers (for interpretability)."""
+        x = self._prepare_node_features(x)
 
-        Args:
-            x: Node features
-            edge_index: Edge connectivity
-            edge_attr: Edge features
-
-        Returns:
-            List of attention weight tensors per layer
-        """
         attention_weights = []
 
-        # Layer 1
         h, (edge_index_1, alpha_1) = self.conv1(
             x, edge_index, edge_attr=edge_attr, return_attention_weights=True
         )
@@ -209,7 +228,6 @@ class OptimalBitcoinGNN(nn.Module):
 
         h_residual = h
 
-        # Layer 2
         h, (edge_index_2, alpha_2) = self.conv2(
             h, edge_index, edge_attr=edge_attr, return_attention_weights=True
         )
@@ -218,7 +236,6 @@ class OptimalBitcoinGNN(nn.Module):
         h = F.elu(h)
         h = h + self.residual_proj(h_residual)
 
-        # Layer 3
         h, (edge_index_3, alpha_3) = self.conv3(
             h, edge_index, edge_attr=edge_attr, return_attention_weights=True
         )
@@ -333,3 +350,63 @@ class EarlyStopping:
         """Load the best model state."""
         if self.best_model_state is not None:
             model.load_state_dict(self.best_model_state)
+
+
+class TemperatureScaler(nn.Module):
+    """Post-hoc temperature scaling for model calibration.
+
+    Learns a single temperature parameter T on a validation set.
+    At inference, logits are divided by T before softmax.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.temperature = nn.Parameter(torch.ones(1) * 1.5)
+
+    def forward(self, logits):
+        return logits / self.temperature
+
+    @staticmethod
+    def calibrate(model, val_loader, device, get_labels_fn, lr=0.01, max_iter=50):
+        """
+        Learn optimal temperature on a validation set.
+
+        Args:
+            model: Trained GNN model (eval mode)
+            val_loader: Validation DataLoader
+            device: Device
+            get_labels_fn: Function to extract center labels from a batch
+            lr: Learning rate for LBFGS
+            max_iter: Max LBFGS iterations
+
+        Returns:
+            Fitted TemperatureScaler
+        """
+        scaler = TemperatureScaler().to(device)
+        nll = nn.CrossEntropyLoss()
+
+        # Collect all logits and labels
+        all_logits = []
+        all_labels = []
+        model.eval()
+        with torch.no_grad():
+            for batch in val_loader:
+                batch = batch.to(device)
+                logits = model(batch.x, batch.edge_index, batch.edge_attr, batch.batch)
+                labels = get_labels_fn(batch)
+                all_logits.append(logits)
+                all_labels.append(labels)
+
+        all_logits = torch.cat(all_logits)
+        all_labels = torch.cat(all_labels)
+
+        optimizer = torch.optim.LBFGS([scaler.temperature], lr=lr, max_iter=max_iter)
+
+        def eval_step():
+            optimizer.zero_grad()
+            loss = nll(scaler(all_logits), all_labels)
+            loss.backward()
+            return loss
+
+        optimizer.step(eval_step)
+        return scaler

@@ -208,7 +208,7 @@ def main():
     parser.add_argument('--patience', type=int, default=20, help='Early stopping patience')
     parser.add_argument('--hidden-dim', type=int, default=64, help='Hidden dimension')
     parser.add_argument('--use-focal-loss', action='store_true', help='Use Focal Loss instead of CrossEntropy')
-    parser.add_argument('--label-smoothing', type=float, default=0.1, help='Label smoothing for CrossEntropy')
+    parser.add_argument('--label-smoothing', type=float, default=0.0, help='Label smoothing for CrossEntropy')
     parser.add_argument('--save-path', type=str, default='optimal_gnn_model.pt', help='Path to save model')
     parser.add_argument('--log-interval', type=int, default=5, help='Log every N epochs')
     parser.add_argument('--checkpoint-interval', type=int, default=10, help='Save checkpoint every N epochs')
