@@ -6,7 +6,7 @@ A self-contained tool that classifies Bitcoin wallets as benign or criminal
 using a Graph Neural Network (GATv2). No local project imports required.
 
 Usage:
-    python wallet_analyzer.py [ADDRESS] [--model PATH] [--output-dir DIR] [--no-charts] [--open-charts]
+    python wallet_analyzer.py [ADDRESS] [--model PATH] [--output-dir DIR] [--save-charts] [--open-charts]
 
 If no address is given, prompts interactively (double-click friendly).
 Internet required (mempool.space API).
@@ -249,13 +249,15 @@ class OptimalBitcoinGNN(nn.Module):
         return self.classifier(h_readout)
 
     def _get_center_embeddings(self, h, batch):
-        batch_size = batch.max().item() + 1
-        center_embeddings = []
-        for i in range(batch_size):
-            mask = batch == i
-            graph_nodes = h[mask]
-            center_embeddings.append(graph_nodes[0])
-        return torch.stack(center_embeddings)
+        """Extract center node (index 0) embedding for each graph in batch.
+
+        Center node is always the first node in each graph by construction.
+        Uses ptr-based vectorized indexing.
+        """
+        counts = torch.bincount(batch)
+        ptr = torch.zeros(counts.size(0) + 1, dtype=torch.long, device=batch.device)
+        torch.cumsum(counts, dim=0, out=ptr[1:])
+        return h[ptr[:-1]]
 
 
 # =============================================================================
