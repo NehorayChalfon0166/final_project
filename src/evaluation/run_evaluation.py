@@ -27,6 +27,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 from src.graph.dataloader import EgoGraphDataset, get_test_loader
 from src.graph.config import NUM_NODE_FEATURES, NUM_EDGE_FEATURES, FEATURE_COLUMNS
 from src.models.optimal_gnn import OptimalBitcoinGNN
+from src.models.utils import get_center_labels
 
 from .metrics import compute_metrics, compute_all_metrics, MetricsReport
 from .cross_validation import KFoldCV, CVConfig
@@ -55,22 +56,6 @@ def load_model(model_path: str, device: torch.device) -> OptimalBitcoinGNN:
         logger.warning(f"Model path not found: {model_path}, using random weights")
 
     return model
-
-
-def get_center_labels(batch) -> torch.Tensor:
-    """Extract center node labels from batch."""
-    if hasattr(batch, 'ptr'):
-        center_indices = batch.ptr[:-1]
-    else:
-        batch_size = batch.batch.max().item() + 1
-        center_indices = []
-        for i in range(batch_size):
-            mask = (batch.batch == i)
-            first_idx = mask.nonzero(as_tuple=True)[0][0]
-            center_indices.append(first_idx)
-        center_indices = torch.tensor(center_indices, device=batch.y.device)
-
-    return batch.y[center_indices]
 
 
 @torch.no_grad()

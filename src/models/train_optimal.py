@@ -28,44 +28,16 @@ from datetime import datetime
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from src.graph.dataloader import get_train_loader, get_test_loader, EgoGraphDataset
+from src.graph.dataloader import get_train_val_loaders, get_test_loader, EgoGraphDataset
 from src.graph.config import NUM_NODE_FEATURES, NUM_EDGE_FEATURES
 from src.models.optimal_gnn import OptimalBitcoinGNN, FocalLoss, EarlyStopping
+from src.models.utils import get_center_labels
 
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
-
-
-def get_center_labels(batch):
-    """
-    Extract center node labels from a batched graph.
-
-    For ego-graphs, center node is always at the start of each graph.
-
-    Args:
-        batch: PyG Batch object
-
-    Returns:
-        Tensor of center node labels [batch_size]
-    """
-    # ptr contains the start indices of each graph
-    # Center node is at index ptr[i] for graph i
-    if hasattr(batch, 'ptr'):
-        center_indices = batch.ptr[:-1]
-    else:
-        # Fallback for older PyG versions
-        batch_size = batch.batch.max().item() + 1
-        center_indices = []
-        for i in range(batch_size):
-            mask = (batch.batch == i)
-            first_idx = mask.nonzero(as_tuple=True)[0][0]
-            center_indices.append(first_idx)
-        center_indices = torch.tensor(center_indices, device=batch.y.device)
-
-    return batch.y[center_indices]
 
 
 def train_epoch(model, loader, optimizer, scheduler, criterion, device, max_grad_norm=1.0):
@@ -221,20 +193,23 @@ def main():
     logger.info(f"Using device: {device}")
 
     # Check if graphs exist
-    train_dataset = EgoGraphDataset(split='train')
+    full_train_dataset = EgoGraphDataset(split='train')
     test_dataset = EgoGraphDataset(split='test')
 
-    if len(train_dataset) == 0:
+    if len(full_train_dataset) == 0:
         logger.error("No training graphs found! Run the graph pipeline first:")
         logger.error("  python -m graph_pipeline.pipeline --split both")
         return
 
-    logger.info(f"Training graphs: {len(train_dataset):,}")
+    logger.info(f"Total training graphs: {len(full_train_dataset):,}")
     logger.info(f"Test graphs: {len(test_dataset):,}")
 
-    # DataLoaders
-    train_loader = get_train_loader(batch_size=args.batch_size, shuffle=True)
+    # DataLoaders (train split into train + val; test held out)
+    train_loader, val_loader = get_train_val_loaders(
+        batch_size=args.batch_size, val_ratio=0.15
+    )
     test_loader = get_test_loader(batch_size=args.batch_size)
+    logger.info(f"Train/Val split: {len(train_loader.dataset):,} train, {len(val_loader.dataset):,} val")
 
     # Model
     model = OptimalBitcoinGNN(
@@ -279,10 +254,10 @@ def main():
     history = {
         'train_loss': [],
         'train_acc': [],
-        'test_acc': [],
-        'test_f1': [],
-        'test_precision': [],
-        'test_recall': [],
+        'val_acc': [],
+        'val_f1': [],
+        'val_precision': [],
+        'val_recall': [],
         'lr': []
     }
 
@@ -313,34 +288,40 @@ def main():
             model, train_loader, optimizer, scheduler, criterion, device
         )
 
-        # Evaluate
-        train_metrics = evaluate(model, train_loader, device)
-        test_metrics = evaluate(model, test_loader, device)
+        # Evaluate on validation set (used for model selection + early stopping)
+        val_metrics = evaluate(model, val_loader, device)
+
+        # Evaluate on training set only at log intervals (expensive)
+        is_log_epoch = (epoch % args.log_interval == 0 or epoch == args.epochs - 1)
+        if is_log_epoch:
+            train_metrics = evaluate(model, train_loader, device)
+            history['train_acc'].append(train_metrics['accuracy'])
+        else:
+            history['train_acc'].append(None)
 
         # Record history
         current_lr = scheduler.get_last_lr()[0]
         history['train_loss'].append(train_loss)
-        history['train_acc'].append(train_metrics['accuracy'])
-        history['test_acc'].append(test_metrics['accuracy'])
-        history['test_f1'].append(test_metrics['f1'])
-        history['test_precision'].append(test_metrics['precision'])
-        history['test_recall'].append(test_metrics['recall'])
+        history['val_acc'].append(val_metrics['accuracy'])
+        history['val_f1'].append(val_metrics['f1'])
+        history['val_precision'].append(val_metrics['precision'])
+        history['val_recall'].append(val_metrics['recall'])
         history['lr'].append(current_lr)
 
-        # Track best model
-        if test_metrics['f1'] > best_f1:
-            best_f1 = test_metrics['f1']
+        # Track best model based on VALIDATION F1 (not test)
+        if val_metrics['f1'] > best_f1:
+            best_f1 = val_metrics['f1']
             best_epoch = epoch
             torch.save(model.state_dict(), args.save_path)
 
         # Logging
-        if epoch % args.log_interval == 0 or epoch == args.epochs - 1:
+        if is_log_epoch:
             logger.info(
                 f"Epoch {epoch:3d} | "
                 f"Loss: {train_loss:.4f} | "
                 f"Train Acc: {train_metrics['accuracy']:.4f} | "
-                f"Test Acc: {test_metrics['accuracy']:.4f} | "
-                f"Test F1: {test_metrics['f1']:.4f} | "
+                f"Val Acc: {val_metrics['accuracy']:.4f} | "
+                f"Val F1: {val_metrics['f1']:.4f} | "
                 f"LR: {current_lr:.6f}"
             )
 
@@ -351,24 +332,24 @@ def main():
                 best_f1, best_epoch, args, checkpoint_path
             )
 
-        # Early stopping
-        if early_stopping(test_metrics['f1'], model):
+        # Early stopping on VALIDATION F1
+        if early_stopping(val_metrics['f1'], model):
             logger.info(f"Early stopping at epoch {epoch}")
             break
 
     # Load best model
     early_stopping.load_best_model(model)
 
-    # Final evaluation
+    # Final evaluation on held-out TEST set (evaluated only once)
     logger.info("=" * 60)
-    logger.info("Final Evaluation (Best Model)")
+    logger.info("Final Evaluation on Held-Out Test Set (Best Model)")
     logger.info("=" * 60)
 
     final_metrics = evaluate(model, test_loader, device)
 
     logger.info(f"""
 Final Results:
-  Best Epoch:     {best_epoch}
+  Best Epoch:     {best_epoch} (selected by Val F1: {best_f1:.4f})
   Test Accuracy:  {final_metrics['accuracy']:.4f} ({final_metrics['accuracy']*100:.2f}%)
   Test Precision: {final_metrics['precision']:.4f}
   Test Recall:    {final_metrics['recall']:.4f}

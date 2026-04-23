@@ -47,14 +47,16 @@ class MempoolFetcher:
         self.semaphore = asyncio.Semaphore(CONCURRENT_REQUESTS)
         self._last_request_time = 0.0
         self._request_interval = 1.0 / MEMPOOL_RATE_LIMIT
+        self._rate_lock = asyncio.Lock()
 
     async def _rate_limit_delay(self):
-        """Enforce rate limiting between requests."""
-        current_time = time.monotonic()
-        elapsed = current_time - self._last_request_time
-        if elapsed < self._request_interval:
-            await asyncio.sleep(self._request_interval - elapsed)
-        self._last_request_time = time.monotonic()
+        """Enforce rate limiting between requests (async-safe)."""
+        async with self._rate_lock:
+            current_time = time.monotonic()
+            elapsed = current_time - self._last_request_time
+            if elapsed < self._request_interval:
+                await asyncio.sleep(self._request_interval - elapsed)
+            self._last_request_time = time.monotonic()
 
     async def fetch_address_transactions(
         self,
@@ -111,7 +113,20 @@ class MempoolFetcher:
                                 success=True,
                                 transactions=[]
                             )
+                        elif response.status >= 500:
+                            # Server error - retry
+                            if attempt < MAX_RETRIES - 1:
+                                wait_time = RETRY_DELAY * (attempt + 1)
+                                logger.warning(f"Server error {response.status} for {address}, retrying in {wait_time}s...")
+                                await asyncio.sleep(wait_time)
+                            else:
+                                return FetchResult(
+                                    address=address,
+                                    success=False,
+                                    error=f"HTTP {response.status} after max retries"
+                                )
                         else:
+                            # Client error (4xx other than 429) - don't retry
                             return FetchResult(
                                 address=address,
                                 success=False,

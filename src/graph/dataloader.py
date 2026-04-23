@@ -22,6 +22,7 @@ class EgoGraphDataset(Dataset):
     def __init__(
         self,
         split: str = 'train',
+        addresses: Optional[List[str]] = None,
         transform=None,
         pre_transform=None
     ):
@@ -29,22 +30,24 @@ class EgoGraphDataset(Dataset):
         Initialize the dataset.
 
         Args:
-            split: 'train' or 'test'
+            split: 'train' or 'test' (determines graphs directory)
+            addresses: Pre-filtered address list. If None, auto-discovers from CSV.
             transform: Optional transform to apply
             pre_transform: Optional pre-transform
         """
         self.split = split
-        self.graphs_dir = os.path.join(GRAPHS_DIR, split)
+        graphs_split = 'train' if split in ('train', 'val') else split
+        self.graphs_dir = os.path.join(GRAPHS_DIR, graphs_split)
 
-        # Load address list from original dataset
-        dataset_path = TRAIN_DATASET_PATH if split == 'train' else TEST_DATASET_PATH
-        df = pd.read_csv(dataset_path)
-
-        # Filter to only addresses with cached graphs
-        self.addresses = [
-            addr for addr in df['address'].tolist()
-            if os.path.exists(os.path.join(self.graphs_dir, f"{addr}.pt"))
-        ]
+        if addresses is not None:
+            self.addresses = addresses
+        else:
+            dataset_path = TRAIN_DATASET_PATH if split in ('train', 'val') else TEST_DATASET_PATH
+            df = pd.read_csv(dataset_path)
+            self.addresses = [
+                addr for addr in df['address'].tolist()
+                if os.path.exists(os.path.join(self.graphs_dir, f"{addr}.pt"))
+            ]
 
         logger.info(f"Found {len(self.addresses):,} cached graphs for {split} split")
 
@@ -71,13 +74,63 @@ class EgoGraphDataset(Dataset):
         return data
 
 
+def get_train_val_loaders(
+    batch_size: int = 32,
+    val_ratio: float = 0.15,
+    num_workers: int = 4,
+    seed: int = 42
+) -> tuple:
+    """
+    Get DataLoaders for training and validation sets.
+
+    Splits the training graph addresses into train/val using a fixed seed
+    so that the validation set is consistent across runs.
+
+    Args:
+        batch_size: Batch size
+        val_ratio: Fraction of training data to use for validation
+        num_workers: Number of worker processes
+        seed: Random seed for reproducible split
+
+    Returns:
+        (train_loader, val_loader)
+    """
+    full_dataset = EgoGraphDataset(split='train')
+    all_addresses = full_dataset.addresses
+
+    # Deterministic shuffle for reproducible split
+    import random
+    rng = random.Random(seed)
+    indices = list(range(len(all_addresses)))
+    rng.shuffle(indices)
+
+    val_size = int(len(all_addresses) * val_ratio)
+    val_indices = indices[:val_size]
+    train_indices = indices[val_size:]
+
+    train_addrs = [all_addresses[i] for i in train_indices]
+    val_addrs = [all_addresses[i] for i in val_indices]
+
+    train_dataset = EgoGraphDataset(split='train', addresses=train_addrs)
+    val_dataset = EgoGraphDataset(split='val', addresses=val_addrs)
+
+    train_loader = DataLoader(
+        train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers
+    )
+    val_loader = DataLoader(
+        val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers
+    )
+
+    return train_loader, val_loader
+
+
 def get_train_loader(
     batch_size: int = 32,
     shuffle: bool = True,
-    num_workers: int = 0
+    num_workers: int = 4
 ) -> DataLoader:
     """
-    Get DataLoader for training set.
+    Get DataLoader for full training set (no val split).
 
     Args:
         batch_size: Batch size
@@ -98,7 +151,7 @@ def get_train_loader(
 
 def get_test_loader(
     batch_size: int = 32,
-    num_workers: int = 0
+    num_workers: int = 4
 ) -> DataLoader:
     """
     Get DataLoader for test set.

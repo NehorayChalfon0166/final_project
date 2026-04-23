@@ -135,21 +135,22 @@ def step_train_gnn(epochs: int = 100, batch_size: int = 64):
     logger.info("=" * 60)
 
     import torch
-    from src.graph.dataloader import EgoGraphDataset, get_train_loader, get_test_loader
+    from src.graph.dataloader import EgoGraphDataset, get_train_val_loaders, get_test_loader
     from src.graph.config import NUM_NODE_FEATURES, NUM_EDGE_FEATURES
     from src.models.optimal_gnn import OptimalBitcoinGNN, EarlyStopping
     from src.models.train_optimal import train_epoch, evaluate, save_checkpoint
+    from src.models.utils import get_center_labels
 
     os.makedirs(OUTPUTS_DIR, exist_ok=True)
 
-    train_dataset = EgoGraphDataset(split='train')
+    full_train_dataset = EgoGraphDataset(split='train')
     test_dataset = EgoGraphDataset(split='test')
 
-    if len(train_dataset) == 0:
+    if len(full_train_dataset) == 0:
         logger.error("No training graphs found! Run step 2 (graph building) first.")
         return None
 
-    logger.info(f"Training graphs: {len(train_dataset):,}")
+    logger.info(f"Total training graphs: {len(full_train_dataset):,}")
     logger.info(f"Test graphs: {len(test_dataset):,}")
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -165,8 +166,9 @@ def step_train_gnn(epochs: int = 100, batch_size: int = 64):
     from torch.optim.lr_scheduler import OneCycleLR
     import torch.nn as nn
 
-    train_loader = get_train_loader(batch_size=batch_size, shuffle=True)
+    train_loader, val_loader = get_train_val_loaders(batch_size=batch_size, val_ratio=0.15)
     test_loader = get_test_loader(batch_size=batch_size)
+    logger.info(f"Train/Val split: {len(train_loader.dataset):,} train, {len(val_loader.dataset):,} val")
 
     optimizer = AdamW(model.parameters(), lr=0.001, weight_decay=0.01)
     scheduler = OneCycleLR(
@@ -178,23 +180,23 @@ def step_train_gnn(epochs: int = 100, batch_size: int = 64):
 
     best_f1 = 0
     best_epoch = 0
-    history = {'train_loss': [], 'test_f1': []}
+    history = {'train_loss': [], 'val_f1': []}
     model_path = os.path.join(OUTPUTS_DIR, 'gnn_model.pt')
 
     for epoch in range(epochs):
         train_loss = train_epoch(model, train_loader, optimizer, scheduler, criterion, device)
-        test_metrics = evaluate(model, test_loader, device)
+        val_metrics = evaluate(model, val_loader, device)
 
         history['train_loss'].append(train_loss)
-        history['test_f1'].append(test_metrics['f1'])
+        history['val_f1'].append(val_metrics['f1'])
 
-        if test_metrics['f1'] > best_f1:
-            best_f1 = test_metrics['f1']
+        if val_metrics['f1'] > best_f1:
+            best_f1 = val_metrics['f1']
             best_epoch = epoch
             torch.save(model.state_dict(), model_path)
 
         if epoch % 10 == 0:
-            logger.info(f"Epoch {epoch}: Loss={train_loss:.4f}, F1={test_metrics['f1']:.4f}")
+            logger.info(f"Epoch {epoch}: Loss={train_loss:.4f}, Val F1={val_metrics['f1']:.4f}")
 
         if (epoch + 1) % 20 == 0:
             save_checkpoint(model, optimizer, scheduler, epoch, history,
@@ -206,20 +208,20 @@ def step_train_gnn(epochs: int = 100, batch_size: int = 64):
                               checkpoint_interval=20, resume=None
                           ), os.path.join(OUTPUTS_DIR, 'gnn_checkpoint.pt'))
 
-        if early_stopping(test_metrics['f1'], model):
+        if early_stopping(val_metrics['f1'], model):
             logger.info(f"Early stopping at epoch {epoch}")
             break
 
+    # Load best model and evaluate on held-out test set
     model.load_state_dict(torch.load(model_path, weights_only=True))
     final_metrics = evaluate(model, test_loader, device)
 
-    # Temperature scaling calibration
+    # Temperature scaling calibration on VALIDATION set (not test)
     from src.models.optimal_gnn import TemperatureScaler
-    from src.models.train_optimal import get_center_labels
 
-    logger.info("\nCalibrating temperature scaling on test set...")
+    logger.info("\nCalibrating temperature scaling on validation set...")
     temp_scaler = TemperatureScaler.calibrate(
-        model, test_loader, device, get_center_labels
+        model, val_loader, device, get_center_labels
     )
     temp_value = temp_scaler.temperature.item()
     logger.info(f"  Optimal temperature: {temp_value:.3f}")
@@ -236,13 +238,14 @@ def step_train_gnn(epochs: int = 100, batch_size: int = 64):
             'history': history,
             'final_metrics': final_metrics,
             'best_epoch': best_epoch,
+            'best_val_f1': best_f1,
             'epochs_trained': epoch + 1,
             'temperature': temp_value,
             'timestamp': datetime.now().isoformat()
         }, f, indent=2, cls=NpEncoder)
 
-    logger.info(f"\nGNN Final Results:")
-    logger.info(f"  Best Epoch: {best_epoch}")
+    logger.info(f"\nGNN Final Results (held-out test set):")
+    logger.info(f"  Best Epoch: {best_epoch} (selected by Val F1: {best_f1:.4f})")
     logger.info(f"  Accuracy:   {final_metrics['accuracy']:.4f}")
     logger.info(f"  Precision:  {final_metrics['precision']:.4f}")
     logger.info(f"  Recall:     {final_metrics['recall']:.4f}")
@@ -262,6 +265,7 @@ def step_evaluate():
     from src.graph.dataloader import EgoGraphDataset
     from src.graph.config import NUM_NODE_FEATURES, NUM_EDGE_FEATURES, FEATURE_COLUMNS
     from src.models.optimal_gnn import OptimalBitcoinGNN
+    from src.models.utils import get_center_labels
     from src.evaluation.metrics import compute_metrics
 
     eval_dir = os.path.join(OUTPUTS_DIR, 'evaluation')
@@ -309,20 +313,7 @@ def step_evaluate():
 
             probs = torch.softmax(out, dim=1)
             preds = out.argmax(dim=1)
-
-            # Get center node labels
-            if hasattr(batch, 'ptr'):
-                center_indices = batch.ptr[:-1]
-            else:
-                batch_size = batch.batch.max().item() + 1
-                center_indices = []
-                for i in range(batch_size):
-                    mask = (batch.batch == i)
-                    first_idx = mask.nonzero(as_tuple=True)[0][0]
-                    center_indices.append(first_idx)
-                center_indices = torch.tensor(center_indices, device=device)
-
-            labels = batch.y[center_indices]
+            labels = get_center_labels(batch)
 
             all_preds.extend(preds.cpu().numpy())
             all_probs.extend(probs[:, 1].cpu().numpy())

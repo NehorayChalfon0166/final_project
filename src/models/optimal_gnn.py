@@ -11,6 +11,8 @@ Architecture:
     - Hybrid readout: center node + global mean pool + global max pool
     - Classification: Linear(192 → 64 → 2)
 """
+import copy
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -202,23 +204,28 @@ class OptimalBitcoinGNN(nn.Module):
         return out
 
     def _get_center_embeddings(self, h, batch):
-        """Extract center node (index 0) embedding for each graph in batch."""
-        batch_size = batch.max().item() + 1
-        center_embeddings = []
+        """Extract center node (index 0) embedding for each graph in batch.
 
-        for i in range(batch_size):
-            mask = (batch == i)
-            graph_nodes = h[mask]
-            center_embeddings.append(graph_nodes[0])
-
-        return torch.stack(center_embeddings)
+        Center node is always the first node in each graph by construction
+        in graph_builder.py. We use ptr-based vectorized indexing.
+        """
+        counts = torch.bincount(batch)
+        ptr = torch.zeros(counts.size(0) + 1, dtype=torch.long, device=batch.device)
+        torch.cumsum(counts, dim=0, out=ptr[1:])
+        return h[ptr[:-1]]
 
     def get_attention_weights(self, x, edge_index, edge_attr):
-        """Get attention weights from all layers (for interpretability)."""
+        """Get attention weights from all layers (for interpretability).
+
+        Mirrors the eval-mode forward pass (no dropout/DropEdge) so that
+        intermediate representations are consistent with actual inference.
+        """
         x = self._prepare_node_features(x)
+        x_init = x
 
         attention_weights = []
 
+        # Layer 1
         h, (edge_index_1, alpha_1) = self.conv1(
             x, edge_index, edge_attr=edge_attr, return_attention_weights=True
         )
@@ -228,6 +235,7 @@ class OptimalBitcoinGNN(nn.Module):
 
         h_residual = h
 
+        # Layer 2
         h, (edge_index_2, alpha_2) = self.conv2(
             h, edge_index, edge_attr=edge_attr, return_attention_weights=True
         )
@@ -236,10 +244,16 @@ class OptimalBitcoinGNN(nn.Module):
         h = F.elu(h)
         h = h + self.residual_proj(h_residual)
 
+        # Layer 3
         h, (edge_index_3, alpha_3) = self.conv3(
             h, edge_index, edge_attr=edge_attr, return_attention_weights=True
         )
         attention_weights.append(alpha_3)
+        h = self.norm3(h)
+        h = F.elu(h)
+
+        # Initial connection residual
+        h = h + self.initial_proj(x_init)
 
         return attention_weights
 
@@ -249,7 +263,7 @@ class FocalLoss(nn.Module):
     Focal Loss for hard example mining.
 
     Down-weights easy examples to focus training on hard cases.
-    Useful even for balanced datasets where some samples are harder.
+    Alpha is applied per-class: alpha for class 1 (criminal), 1-alpha for class 0 (benign).
     """
 
     def __init__(self, alpha: float = 0.5, gamma: float = 2.0, reduction: str = 'mean'):
@@ -257,7 +271,7 @@ class FocalLoss(nn.Module):
         Initialize Focal Loss.
 
         Args:
-            alpha: Weighting factor (default: 0.5 for balanced)
+            alpha: Weighting factor for positive class (default: 0.5 for balanced)
             gamma: Focusing parameter (default: 2.0)
             reduction: 'mean', 'sum', or 'none'
         """
@@ -279,7 +293,8 @@ class FocalLoss(nn.Module):
         """
         ce_loss = F.cross_entropy(inputs, targets, reduction='none')
         pt = torch.exp(-ce_loss)
-        focal_loss = self.alpha * (1 - pt) ** self.gamma * ce_loss
+        alpha_t = torch.where(targets == 1, self.alpha, 1 - self.alpha)
+        focal_loss = alpha_t * (1 - pt) ** self.gamma * ce_loss
 
         if self.reduction == 'mean':
             return focal_loss.mean()
@@ -327,10 +342,10 @@ class EarlyStopping:
         """
         if self.best_score is None:
             self.best_score = score
-            self.best_model_state = model.state_dict().copy()
+            self.best_model_state = copy.deepcopy(model.state_dict())
         elif self._is_improvement(score):
             self.best_score = score
-            self.best_model_state = model.state_dict().copy()
+            self.best_model_state = copy.deepcopy(model.state_dict())
             self.counter = 0
         else:
             self.counter += 1
@@ -361,7 +376,7 @@ class TemperatureScaler(nn.Module):
 
     def __init__(self):
         super().__init__()
-        self.temperature = nn.Parameter(torch.ones(1) * 1.5)
+        self.temperature = nn.Parameter(torch.ones(1))
 
     def forward(self, logits):
         return logits / self.temperature
