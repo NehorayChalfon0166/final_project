@@ -114,11 +114,24 @@ final_project/
 
 ## Model
 
-**OptimalBitcoinGNN**: 3-layer GATv2 architecture with:
+**OptimalBitcoinGNN** (defined in `src/models/optimal_gnn.py`): 3-layer GATv2 architecture with:
 - 12 selected features (from 19)
 - Multi-head attention (4→4→2 heads)
 - Residual connections
 - Dropout regularization
+
+### Saved Model Artifacts
+
+Trained by `src/models/train_optimal.py` (invoked via `run_pipeline.py --train`) and saved to:
+
+| File | Description |
+| --- | --- |
+| `outputs/gnn_model.pt` | Trained model weights (`state_dict`) — load this for inference |
+| `outputs/gnn_checkpoint.pt` | Full checkpoint (model + optimizer + scheduler state) for resuming training |
+| `outputs/temperature.pt` | Calibration temperature for probability scaling |
+| `outputs/gnn_training_history.json` | Per-epoch training/validation metrics |
+
+Note: although `train_optimal.py` defaults `--save-path` to `optimal_gnn_model.pt`, the pipeline saves under the canonical name `outputs/gnn_model.pt` (referenced by `run_pipeline.py`, `Backend/`, and `standalone/wallet_analyzer.py`).
 
 ## Technologies
 
