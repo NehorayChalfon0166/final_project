@@ -1,6 +1,13 @@
+import os
+from pathlib import Path
+
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+OUTPUTS_DIR = PROJECT_ROOT / 'outputs'
+
 
 def create_confusion_matrix():
     # Confusion matrix from test set evaluation
@@ -44,10 +51,11 @@ def create_confusion_matrix():
     plt.figtext(0.5, 0.02, metrics_text, ha='center', fontsize=10, style='italic')
 
     plt.tight_layout(rect=[0, 0.05, 1, 1])
-    plt.savefig('outputs/confusion_matrix.png', dpi=150, bbox_inches='tight',
+    out = OUTPUTS_DIR / 'confusion_matrix.png'
+    plt.savefig(out, dpi=150, bbox_inches='tight',
                 facecolor='white', edgecolor='none')
     plt.close()
-    print("Confusion matrix saved to outputs/confusion_matrix.png")
+    print(f"Confusion matrix saved to {out}")
 
 if __name__ == '__main__':
     create_confusion_matrix()
