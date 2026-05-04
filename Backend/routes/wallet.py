@@ -4,7 +4,13 @@ from typing import Optional, Dict, List, Any
 import requests
 import random
 import os
-from routes.utils.model_fit_utils import analyze_wallet_pipeline, fetch_transactions_mempool, compute_feature_importance
+from routes.utils.model_fit_utils import (
+    analyze_wallet_pipeline,
+    fetch_transactions_mempool,
+    compute_feature_importance,
+    get_cached_transactions,
+    get_cached_address_stats,
+)
 
 router = APIRouter()
 
@@ -76,7 +82,7 @@ def is_valid_bitcoin_address(address: str) -> bool:
 
 
 @router.get("/random")
-async def get_random_wallet():
+def get_random_wallet():
     """
     Get a random wallet address from the latest Bitcoin block.
     
@@ -142,7 +148,7 @@ async def get_random_wallet():
 
 
 @router.get("/analyze/{address}", response_model=AnalysisResult)
-async def analyze_wallet(address: str):
+def analyze_wallet(address: str):
     """
     Analyze a wallet address: fetch transactions, preprocess, and run inference.
 
@@ -167,7 +173,7 @@ async def analyze_wallet(address: str):
     
 
 @router.get("/info/{address}")
-async def get_wallet_info(address: str):
+def get_wallet_info(address: str):
     """
     Fetch transaction info for a wallet address.
 
@@ -180,9 +186,9 @@ async def get_wallet_info(address: str):
     if not is_valid_bitcoin_address(address):
         raise HTTPException(status_code=400, detail="Invalid Bitcoin address format")
     try:
-        # Fetch transactions and address stats
-        transactions = fetch_transactions_mempool(address)
-        stats = fetch_address_stats(address)
+        # Reuse cache populated by /analyze when available; otherwise fetch.
+        transactions = get_cached_transactions(address)
+        stats = get_cached_address_stats(address)
         
         # Calculate balance from chain_stats and mempool_stats
         chain_stats = stats.get('chain_stats', {})
@@ -217,7 +223,7 @@ async def get_wallet_info(address: str):
 
 
 @router.get("/feature-importance/{address}", response_model=FeatureImportanceResult)
-async def get_feature_importance(address: str):
+def get_feature_importance(address: str):
     """
     Compute feature importance for a specific wallet address.
 

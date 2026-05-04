@@ -7,7 +7,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 60000, // 60 seconds for wallet analysis
+  timeout: 90000, // 90 seconds: analyze can take ~30s and may queue behind /info's Mempool call
 });
 
 // Health check

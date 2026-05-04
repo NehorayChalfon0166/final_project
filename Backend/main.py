@@ -21,6 +21,12 @@ app = FastAPI(
 @app.on_event("startup")
 async def startup_event():
     print("✓ Server starting up...")
+    try:
+        from routes.utils.model_fit_utils import get_cached_model
+        get_cached_model()
+        print("✓ Model preloaded into cache")
+    except Exception as e:
+        print(f"[!] Model preload failed: {e}")
 
 @app.on_event("shutdown")
 async def shutdown_event():
