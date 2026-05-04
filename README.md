@@ -88,16 +88,23 @@ final_project/
 │   ├── baselines/             # Baseline models (XGBoost)
 │   └── evaluation/            # Evaluation tools
 ├── scripts/                    # Utility scripts
+│   ├── viz/                   # Chart/diagram generation (run_baselines, dark charts, etc.)
 │   ├── evaluate_model.py      # Model evaluation on test set
 │   ├── check_model.py         # Model inspection
-│   └── build_remaining_graphs.py
-├── notebooks/                  # Jupyter notebooks
-├── graph_data/                 # Generated ego-graphs
-├── outputs/                    # All outputs
-│   ├── baseline/              # XGBoost results
-│   ├── evaluation/            # Evaluation results & analysis
-│   ├── gnn_model.pt           # Trained GNN model
+│   ├── build_remaining_graphs.py
+│   └── build_from_cache.py    # Consolidate legacy cache into train cache
+├── notebooks/                  # Jupyter notebooks (EDA only)
+├── graph_data/                 # Generated ego-graphs (gitignored)
+├── outputs/                    # Generated artifacts only — no source code
+│   ├── baselines/             # Baseline comparison plots + JSON
+│   ├── evaluation/            # Evaluation results, calibration, confusion matrix, etc.
+│   ├── gnn_model.pt           # Trained GNN weights (loaded by Backend + standalone)
+│   ├── temperature.pt         # Calibration scaler
 │   └── gnn_training_history.json
+├── docs/                       # Project docs
+│   ├── STATUS.md              # Open work + completed work + architecture notes
+│   ├── archive/               # Historical: resolved fix-docs, design reviews
+│   └── submissions/           # Course deliverables (slides, lit review)
 └── run_pipeline.py            # Master pipeline script
 ```
 
