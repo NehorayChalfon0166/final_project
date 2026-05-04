@@ -4,6 +4,7 @@ data/*
 !data/**/.gitkeep
 Real_Cats_data/
 Elipticpp_Data/
+data
 
 # Feature outputs (large CSV files)
 src/features/output/*.csv
@@ -13,6 +14,7 @@ src/features/output/feature_columns.txt
 # outputs/
 
 # Graph data (generated) but keep folder structure
+graph_data
 graph_data/*
 !graph_data/**/
 !graph_data/**/.gitkeep
@@ -59,10 +61,10 @@ wheels/
 .installed.cfg
 *.egg
 
-# PyTorch models
+# PyTorch models (canonical artifacts live under outputs/ and are committed
+# explicitly; everything else is generated locally)
 *.pt
 *.pth
-!models/crypto_gnn_model.pt
 
 # Jupyter Notebook
 .ipynb_checkpoints
@@ -99,5 +101,12 @@ elliptic_model/
 # Frontend build artifacts
 node_modules/
 dist/
+Frontend/dist/
 dist-ssr/
 *.local
+
+# REAL-CATS scraper progress files
+data/realcats/*_progress.txt
+
+# Local Claude Code overrides
+.claude/settings.local.json
