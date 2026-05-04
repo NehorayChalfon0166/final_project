@@ -26,12 +26,13 @@ function App() {
             <Activity size={28} />
             <h1>Bitcoin Wallet Analyzer</h1>
           </div>
-          <button 
+          <button
             className="theme-toggle-nav"
             onClick={() => setDarkMode(!darkMode)}
             title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
           >
-            {darkMode ? <Sun size={20} /> : <Moon size={20} />}
+            {darkMode ? <Sun size={20} aria-hidden="true" /> : <Moon size={20} aria-hidden="true" />}
           </button>
         </div>
       </nav>

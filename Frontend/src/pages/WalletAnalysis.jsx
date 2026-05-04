@@ -292,8 +292,9 @@ function WalletAnalysis() {
                     className="copy-btn"
                     onClick={copyToClipboard}
                     title={copied ? 'Copied!' : 'Copy address'}
+                    aria-label={copied ? 'Address copied' : 'Copy address'}
                   >
-                    {copied ? <Check size={18} /> : <Copy size={18} />}
+                    {copied ? <Check size={18} aria-hidden="true" /> : <Copy size={18} aria-hidden="true" />}
                   </button>
                 )}
               </div>
@@ -327,12 +328,14 @@ function WalletAnalysis() {
               >
                 Random Wallet
               </button>
-              <button 
+              <button
                 type="button"
                 className="example-btn"
                 onClick={() => setShowHistory(!showHistory)}
+                aria-expanded={showHistory}
+                aria-controls="history-dropdown"
               >
-                <History size={16} />
+                <History size={16} aria-hidden="true" />
                 History ({searchHistory.length})
               </button>
             </div>
@@ -340,11 +343,12 @@ function WalletAnalysis() {
 
           {/* Search History Dropdown */}
           {showHistory && searchHistory.length > 0 && (
-            <div className="history-dropdown">
+            <div className="history-dropdown" id="history-dropdown">
               <h4>Recent Searches</h4>
               {searchHistory.map((item, idx) => (
-                <div 
-                  key={idx} 
+                <button
+                  type="button"
+                  key={idx}
                   className="history-item"
                   onClick={() => {
                     setAddress(item.address);
@@ -362,15 +366,15 @@ function WalletAnalysis() {
                   <div className="history-time">
                     {new Date(item.timestamp).toLocaleString()}
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           )}
         </form>
 
         {error && (
-          <div className="alert alert-error">
-            <AlertCircle size={20} />
+          <div className="alert alert-error" role="alert">
+            <AlertCircle size={20} aria-hidden="true" />
             <span>{error}</span>
           </div>
         )}
@@ -405,6 +409,31 @@ function WalletAnalysis() {
               </button>
             </div>
           </div>
+
+          {result.classification && (
+            <div className={`classification-card ${getRiskColor(result.classification)}`}>
+              <div className="classification-header">
+                {result.classification.toLowerCase() === 'criminal' ? (
+                  <XCircle size={32} aria-hidden="true" />
+                ) : (
+                  <CheckCircle size={32} aria-hidden="true" />
+                )}
+                <h3>Classification: {result.classification}</h3>
+              </div>
+              <p className="classification-description">
+                {result.classification.toLowerCase() === 'criminal'
+                  ? 'This wallet has been classified as potentially involved in criminal activity.'
+                  : 'This wallet appears to be legitimate with normal transaction patterns.'
+                }
+              </p>
+              {result.risk_score !== null && (
+                <div className="risk-level">
+                  <span>Risk Level: </span>
+                  <strong>{getRiskLevel(result.risk_score)}</strong>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="stats-grid">
             <div className="stat-card">
@@ -502,31 +531,6 @@ function WalletAnalysis() {
                   </div>
                 </div>
               </div>
-            </div>
-          )}
-
-          {result.classification && (
-            <div className={`classification-card ${getRiskColor(result.classification)}`}>
-              <div className="classification-header">
-                {result.classification.toLowerCase() === 'criminal' ? (
-                  <XCircle size={32} />
-                ) : (
-                  <CheckCircle size={32} />
-                )}
-                <h3>Classification: {result.classification}</h3>
-              </div>
-              <p className="classification-description">
-                {result.classification.toLowerCase() === 'criminal' 
-                  ? 'This wallet has been classified as potentially involved in criminal activity.'
-                  : 'This wallet appears to be legitimate with normal transaction patterns.'
-                }
-              </p>
-              {result.risk_score !== null && (
-                <div className="risk-level">
-                  <span>Risk Level: </span>
-                  <strong>{getRiskLevel(result.risk_score)}</strong>
-                </div>
-              )}
             </div>
           )}
 
@@ -671,64 +675,72 @@ function WalletAnalysis() {
           {/* Transactions Section */}
           {walletInfo && walletInfo.transactions && walletInfo.transactions.length > 0 && (
             <div className="transactions-card">
-              <div 
+              <button
+                type="button"
                 className="transactions-header"
                 onClick={() => setShowTransactions(!showTransactions)}
+                aria-expanded={showTransactions}
+                aria-controls="tx-list"
               >
-                <div className="transactions-title">
-                  <ArrowRightLeft size={24} />
+                <span className="transactions-title">
+                  <ArrowRightLeft size={24} aria-hidden="true" />
                   <h3>Transactions ({walletInfo.transaction_count})</h3>
-                </div>
-                <button className="toggle-btn">
+                </span>
+                <span className="toggle-btn" aria-hidden="true">
                   {showTransactions ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                </button>
-              </div>
+                </span>
+              </button>
 
               {showTransactions && (
-                <div className="transactions-list">
+                <div className="transactions-list" id="tx-list">
                   {walletInfo.transactions.slice(0, visibleTxCount).map((tx, index) => (
                     <div key={tx.txid} className="transaction-item">
-                      <div 
-                        className="transaction-summary"
-                        onClick={() => setExpandedTx(expandedTx === tx.txid ? null : tx.txid)}
-                      >
-                        <div className="tx-main-info">
-                          <div className="tx-id">
-                            <code>{truncateAddress(tx.txid, 12)}</code>
-                            <a 
-                              href={`https://mempool.space/tx/${tx.txid}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="external-link"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <ExternalLink size={14} />
-                            </a>
+                      <div className="transaction-summary">
+                        <button
+                          type="button"
+                          className="transaction-summary-btn"
+                          onClick={() => setExpandedTx(expandedTx === tx.txid ? null : tx.txid)}
+                          aria-expanded={expandedTx === tx.txid}
+                          aria-label={`${expandedTx === tx.txid ? 'Collapse' : 'Expand'} transaction details`}
+                        >
+                          <div className="tx-main-info">
+                            <div className="tx-id">
+                              <code>{truncateAddress(tx.txid, 12)}</code>
+                            </div>
+                            <div className="tx-status">
+                              {tx.status?.confirmed ? (
+                                <span className="confirmed">
+                                  <CheckCircle size={14} aria-hidden="true" />
+                                  Block {tx.status.block_height}
+                                </span>
+                              ) : (
+                                <span className="pending">
+                                  <Loader size={14} aria-hidden="true" />
+                                  Pending
+                                </span>
+                              )}
+                            </div>
                           </div>
-                          <div className="tx-status">
-                            {tx.status?.confirmed ? (
-                              <span className="confirmed">
-                                <CheckCircle size={14} />
-                                Block {tx.status.block_height}
-                              </span>
-                            ) : (
-                              <span className="pending">
-                                <Loader size={14} />
-                                Pending
-                              </span>
+                          <div className="tx-details-row">
+                            <span className="tx-fee">Fee: {formatSatoshis(tx.fee)}</span>
+                            <span className="tx-size">{tx.size} bytes</span>
+                            {tx.status?.block_time && (
+                              <span className="tx-time">{formatDate(tx.status.block_time)}</span>
                             )}
                           </div>
-                        </div>
-                        <div className="tx-details-row">
-                          <span className="tx-fee">Fee: {formatSatoshis(tx.fee)}</span>
-                          <span className="tx-size">{tx.size} bytes</span>
-                          {tx.status?.block_time && (
-                            <span className="tx-time">{formatDate(tx.status.block_time)}</span>
-                          )}
-                        </div>
-                        <button className="expand-btn">
-                          {expandedTx === tx.txid ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                          <span className="expand-btn" aria-hidden="true">
+                            {expandedTx === tx.txid ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                          </span>
                         </button>
+                        <a
+                          href={`https://mempool.space/tx/${tx.txid}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="external-link tx-external-link"
+                          aria-label="View transaction on mempool.space"
+                        >
+                          <ExternalLink size={14} aria-hidden="true" />
+                        </a>
                       </div>
 
                       {expandedTx === tx.txid && (
@@ -796,12 +808,12 @@ function WalletAnalysis() {
                   {visibleTxCount >= walletInfo.transactions.length && walletInfo.transactions.length > 20 && (
                     <div className="more-transactions">
                       All {walletInfo.transaction_count} transactions loaded.
-                      <a 
+                      <a
                         href={`https://mempool.space/address/${result.wallet_address}`}
                         target="_blank"
                         rel="noopener noreferrer"
                       >
-                        View on Mempool.space <ExternalLink size={14} />
+                        View on Mempool.space <ExternalLink size={14} aria-hidden="true" />
                       </a>
                     </div>
                   )}
