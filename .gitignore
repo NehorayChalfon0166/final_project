@@ -22,9 +22,6 @@ graph_data/*
 # Handed in presentations
 Handed_in/
 
-# Model training history (generated)
-src/models/test_model_history.json
-
 # Ignore virtual environment
 .venv/
 env/

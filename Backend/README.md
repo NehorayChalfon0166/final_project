@@ -175,7 +175,7 @@ Selected from REAL-CATS and Elliptic++ datasets (7 correlated features removed):
 
 Create a `.env` file (optional):
 ```bash
-MODEL_PATH=../models/crypto_gnn_model.pt
+MODEL_PATH=../outputs/gnn_model.pt
 API_HOST=127.0.0.1
 API_PORT=8000
 DEBUG=True
