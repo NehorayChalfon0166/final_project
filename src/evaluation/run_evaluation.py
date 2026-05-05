@@ -1,15 +1,16 @@
 """
 Evaluation Runner
 =================
-Main script for running full model evaluation:
-- Standard metrics
-- K-fold cross-validation
-- Error analysis
-- Model interpretability
+Standalone CLI for the richer evaluation modes (cross-validation,
+interpretability, embedding analysis). The lighter evaluation invoked by
+``run_pipeline.py --evaluate`` is wired directly to ``src.evaluation.metrics``,
+``error_analysis``, and ``interpretability`` from ``run_pipeline.step_evaluate``;
+this script is the entry point for the modes ``run_pipeline.py`` doesn't run.
 
 Usage:
-    python -m evaluation.run_evaluation --model-path models/optimal_gnn_model.pt
-    python -m evaluation.run_evaluation --cross-validation --n-folds 5
+    python -m src.evaluation.run_evaluation --standard
+    python -m src.evaluation.run_evaluation --cross-validation --n-folds 5
+    python -m src.evaluation.run_evaluation --interpretability
 """
 import os
 import sys
@@ -338,7 +339,7 @@ def main():
     parser.add_argument('--all', action='store_true', help='Run all evaluations')
 
     # Model settings
-    parser.add_argument('--model-path', type=str, default='models/optimal_gnn_model.pt')
+    parser.add_argument('--model-path', type=str, default='outputs/gnn_model.pt')
     parser.add_argument('--hidden-dim', type=int, default=64)
 
     # CV settings
@@ -351,7 +352,7 @@ def main():
     parser.add_argument('--patience', type=int, default=20)
 
     # Output
-    parser.add_argument('--output-dir', type=str, default='evaluation/results')
+    parser.add_argument('--output-dir', type=str, default='outputs/evaluation')
 
     args = parser.parse_args()
 

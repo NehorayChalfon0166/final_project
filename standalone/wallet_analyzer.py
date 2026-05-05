@@ -10,6 +10,11 @@ Usage:
 
 If no address is given, prompts interactively (double-click friendly).
 Internet required (mempool.space API).
+
+Maintainer note: this file inlines copies of the model and graph builder from
+src/. After editing src/models/optimal_gnn.py, src/graph/graph_builder.py, or
+src/graph/config.py, run `python scripts/check_standalone_sync.py` to confirm
+the inlined blocks (between the BEGIN/END INLINED markers) still match.
 """
 
 import argparse
@@ -52,6 +57,9 @@ from matplotlib.patches import FancyBboxPatch
 
 # =============================================================================
 # CONSTANTS (inlined from src/graph/config.py)
+# Run `python scripts/check_standalone_sync.py` after editing src/graph/config.py
+# to confirm this block still matches.
+# === BEGIN INLINED FROM src/graph/config.py ===
 # =============================================================================
 
 FEATURE_COLUMNS = [
@@ -93,6 +101,8 @@ TIMESTAMP_MAX = 1893456000   # ~2030-01-01
 MEMPOOL_API = "https://mempool.space/api"
 HEADERS = {"User-Agent": "Mozilla/5.0"}
 
+# === END INLINED FROM src/graph/config.py ===
+
 # =============================================================================
 # COLOR PALETTE (matching frontend)
 # =============================================================================
@@ -109,6 +119,8 @@ CLR_GRAY_700 = "#374151"
 
 # =============================================================================
 # MODEL — OptimalBitcoinGNN (inlined from src/models/optimal_gnn.py)
+# Layer structure must match src/ verbatim for state_dict compatibility.
+# === BEGIN INLINED FROM src/models/optimal_gnn.py ===
 # =============================================================================
 
 class OptimalBitcoinGNN(nn.Module):
@@ -259,9 +271,14 @@ class OptimalBitcoinGNN(nn.Module):
         torch.cumsum(counts, dim=0, out=ptr[1:])
         return h[ptr[:-1]]
 
+# === END INLINED FROM src/models/optimal_gnn.py ===
+
 
 # =============================================================================
 # GRAPH BUILDER — EgoGraphBuilder (inlined from src/graph/graph_builder.py)
+# Feature pipeline must match src/ for the model to see the same inputs as in
+# training.
+# === BEGIN INLINED FROM src/graph/graph_builder.py ===
 # =============================================================================
 
 class EgoGraphBuilder:
@@ -536,6 +553,8 @@ class EgoGraphBuilder:
                 center_features=features,
                 center_label=label,
             )
+
+# === END INLINED FROM src/graph/graph_builder.py ===
 
 
 # =============================================================================

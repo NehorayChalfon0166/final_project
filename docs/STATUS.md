@@ -2,6 +2,23 @@
 
 Single source of truth for what's open, what's done, and the design context behind both. Replaces the split between `TODO_CHECKLIST.md` and the various `FUTURE_FIX_*.md` docs.
 
+For function-level call traces (offline pipeline, Backend `/analyze`, standalone CLI), see `docs/CALL_FLOW.md`.
+
+---
+
+## Directory layout
+
+| Path | Role | Produced by | Consumed by |
+|---|---|---|---|
+| `data/` | Raw datasets (REAL-CATS, Elliptic++) | — | `--prepare` |
+| `src/features/output/` | Engineered training CSVs | `--prepare` | `--graphs`, `--baseline` |
+| `graph_data/cache/` | Cached mempool.space JSON per address | `--graphs` | `--graphs` (resume) |
+| `graph_data/graphs/{train,test}/` | Materialized PyG `.pt` ego-graphs | `--graphs` | `--train`, `--evaluate` |
+| `graph_data/metadata/` | Per-split build progress | `--graphs` | `--graphs` (resume) |
+| `outputs/` | Trained model + eval/baseline artifacts | `--train`, `--baseline`, `--evaluate` | Backend, standalone |
+
+The naming `src/features/output/` (training CSVs) vs `outputs/` (trained model + results) is unfortunate but stable — see the table for which is which.
+
 ---
 
 ## Open
@@ -11,7 +28,7 @@ Building ego-graphs for the full datasets is still in progress.
 - Train: 9,499 / 86,876 wallets done (~11%)
 - Test:  8,033 / 21,720 wallets done (~37%)
 
-Resume with `python scripts/build_remaining_graphs.py` (use `--split train` or `--split test` to scope, `--max N` to test). The script reads progress from `graph_data/metadata/progress_*.json`; safe to interrupt and re-run.
+Resume with `python run_pipeline.py --graphs --split train` (or `--split test`, or omit for both). The pipeline reads progress from `graph_data/metadata/progress_*.json`; safe to interrupt and re-run.
 
 ### Rebuild training graphs at full pagination
 Existing cached graphs in `graph_data/` were built before pagination was added — only 25 transactions per wallet were captured. Inference now paginates to 500 txs, creating a train/inference mismatch in graph *structure* (center-node features were always full-history; only the ego-graph edges were truncated).
@@ -36,6 +53,16 @@ python run_pipeline.py --train --epochs 150
 ---
 
 ## Recently Completed
+
+Refactor pass (cleanup branch)
+- Removed legacy graph dirs `graph_data/{train,test}/` (canonical lives at `graph_data/graphs/{train,test}/`).
+- Removed empty `src/evaluation/results/` and `src/baselines/results/` placeholders.
+- Removed superseded scripts (`build_remaining_graphs.py`, `build_from_cache.py`, `check_model.py`, `evaluate_model.py`).
+- Split `Backend/routes/utils/model_fit_utils.py` (416 lines) into a package: `_cache`, `_mempool`, `_graph`, `_model`, `_inference`. Public surface unchanged.
+- Extracted `run_pipeline.py` step functions into `src/pipeline_steps/` (537 → 104 lines). CLI surface unchanged.
+- Added `docs/CALL_FLOW.md` and `scripts/check_standalone_sync.py` for drift detection between standalone and `src/`.
+
+
 
 Inference correctness
 - Fix satoshi/BTC unit mismatch in `graph_builder.py` and `standalone/wallet_analyzer.py` (feature values were off by 30–90,000× vs training).

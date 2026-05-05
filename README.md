@@ -86,15 +86,14 @@ final_project/
 │   ├── graph/                 # Ego-graph construction
 │   ├── models/                # GNN model
 │   ├── baselines/             # Baseline models (XGBoost)
-│   └── evaluation/            # Evaluation tools
+│   ├── evaluation/            # Evaluation tools
+│   └── pipeline_steps/        # One module per run_pipeline.py step
 ├── scripts/                    # Utility scripts
-│   ├── viz/                   # Chart/diagram generation (run_baselines, dark charts, etc.)
-│   ├── evaluate_model.py      # Model evaluation on test set
-│   ├── check_model.py         # Model inspection
-│   ├── build_remaining_graphs.py
-│   └── build_from_cache.py    # Consolidate legacy cache into train cache
+│   ├── viz/                   # Chart/diagram generation
+│   ├── generate_model_report.py
+│   └── check_standalone_sync.py  # Verify standalone matches src/
 ├── notebooks/                  # Jupyter notebooks (EDA only)
-├── graph_data/                 # Generated ego-graphs (gitignored)
+├── graph_data/                 # Generated ego-graphs cache (gitignored)
 ├── outputs/                    # Generated artifacts only — no source code
 │   ├── baselines/             # Baseline comparison plots + JSON
 │   ├── evaluation/            # Evaluation results, calibration, confusion matrix, etc.
@@ -103,9 +102,10 @@ final_project/
 │   └── gnn_training_history.json
 ├── docs/                       # Project docs
 │   ├── STATUS.md              # Open work + completed work + architecture notes
+│   ├── CALL_FLOW.md           # Function-level call flow for the three entry points
 │   ├── archive/               # Historical: resolved fix-docs, design reviews
 │   └── submissions/           # Course deliverables (slides, lit review)
-└── run_pipeline.py            # Master pipeline script
+└── run_pipeline.py            # Master pipeline CLI (thin dispatcher)
 ```
 
 ## Datasets
@@ -139,6 +139,8 @@ Trained by `src/models/train_optimal.py` (invoked via `run_pipeline.py --train`)
 | `outputs/gnn_training_history.json` | Per-epoch training/validation metrics |
 
 Note: although `train_optimal.py` defaults `--save-path` to `optimal_gnn_model.pt`, the pipeline saves under the canonical name `outputs/gnn_model.pt` (referenced by `run_pipeline.py`, `Backend/`, and `standalone/wallet_analyzer.py`).
+
+For the function-level call flow of the offline pipeline, the FastAPI backend, and the standalone CLI, see [`docs/CALL_FLOW.md`](docs/CALL_FLOW.md).
 
 ## Technologies
 
