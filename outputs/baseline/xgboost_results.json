@@ -1,0 +1,40 @@
+{
+  "model": "XGBoost",
+  "protocol": "single fit on train_dataset.csv, evaluation on test_dataset.csv (matches GNN)",
+  "results": {
+    "accuracy": 0.8364490284556589,
+    "precision": 0.8426334052330489,
+    "recall": 0.8274242563771986,
+    "f1": 0.8349595762475607,
+    "roc_auc": 0.9201224536930068,
+    "confusion_matrix": [
+      [
+        9181,
+        1678
+      ],
+      [
+        1874,
+        8985
+      ]
+    ],
+    "n_train_samples": 86870,
+    "n_test_samples": 21718,
+    "n_features": 12,
+    "training_time": 0.7842056751251221
+  },
+  "features": [
+    "lifetime_seconds_log",
+    "activity_rate_log",
+    "in_out_balance_log",
+    "total_txs_log",
+    "send_receive_ratio_log",
+    "fee_per_tx_log",
+    "blocks_btwn_txs_mean_log",
+    "fee_share_mean_log",
+    "avg_tx_size_log",
+    "tx_size_range_log",
+    "max_sent_log",
+    "max_received_log"
+  ],
+  "timestamp": "2026-05-05T12:10:12.629773"
+}

@@ -26,9 +26,6 @@ OUTPUT_DIR = os.path.join(CURRENT_DIR, 'output')
 # Random seed for reproducibility
 RANDOM_SEED = 42
 
-## cutoff of samples per group per data source
-CUTOFF = 2500
-
 
 def load_feature_matrix(use_log: bool = True) -> pd.DataFrame:
     """Load the conservative feature matrix."""
@@ -84,6 +81,39 @@ def analyze_label_distribution(df: pd.DataFrame) -> dict:
     return stats
 
 
+def deduplicate_cross_source(df: pd.DataFrame) -> pd.DataFrame:
+    """Drop addresses that appear in both REAL-CATS and Elliptic++ with conflicting labels,
+    and collapse same-label duplicates to a single row.
+
+    A handful of addresses appear in both source datasets. Three cases:
+      - Same label in both sources → keep one row (the REAL-CATS copy by convention).
+      - Conflicting labels → drop the address entirely (we can't tell which is right).
+      - Already filtered: -1/unknown was removed earlier in main().
+    """
+    print("\n" + "=" * 60)
+    print("Deduplicating Cross-Source Addresses")
+    print("=" * 60)
+
+    # Group by address; flag conflicts and same-label dups.
+    counts = df.groupby('address')['label'].nunique()
+    conflicting = counts[counts > 1].index
+    duplicated_addrs = df[df['address'].duplicated(keep=False)]['address'].unique()
+
+    n_conflicts = len(conflicting)
+    n_same_label_dups = len(set(duplicated_addrs) - set(conflicting))
+    print(f"  Cross-source addresses with conflicting labels: {n_conflicts:,} (dropping)")
+    print(f"  Cross-source addresses with consistent labels:  {n_same_label_dups:,} (collapsing to one row)")
+
+    # Drop conflicting addresses entirely.
+    df = df[~df['address'].isin(conflicting)].copy()
+
+    # For consistent duplicates, prefer the REAL-CATS row so source distribution stays comparable.
+    df = df.sort_values('source', ascending=False).drop_duplicates(subset='address', keep='first')
+
+    print(f"  Rows after dedup: {len(df):,}")
+    return df
+
+
 def create_balanced_dataset(df: pd.DataFrame, stats: dict) -> pd.DataFrame:
     """
     Create balanced dataset:
@@ -103,11 +133,6 @@ def create_balanced_dataset(df: pd.DataFrame, stats: dict) -> pd.DataFrame:
         # Get all criminal/illicit (label = 1)
         df_criminal = df_source[df_source['label'] == 1].copy()
         n_criminal = len(df_criminal)
-        #change
-        if n_criminal > CUTOFF:
-            df_criminal = df_criminal.sample(n=CUTOFF, random_state=RANDOM_SEED)
-            n_criminal = CUTOFF
-        #end change
 
         # Sample benign/licit (label = 0) to match
         df_benign_all = df_source[df_source['label'] == 0]
@@ -261,6 +286,9 @@ def main(use_log: bool = True):
     # Remove unknown labels
     df_labeled = df[df['label'] != -1].copy()
     print(f"\nAfter removing unknown: {len(df_labeled):,} addresses")
+
+    # Drop cross-source label conflicts; collapse consistent duplicates.
+    df_labeled = deduplicate_cross_source(df_labeled)
 
     # Create balanced dataset
     df_balanced = create_balanced_dataset(df_labeled, stats)
