@@ -78,19 +78,24 @@ CLONE_CODE = """# Clone the public repo (shallow, ~few MB). Brings in:
 #   - outputs/gnn_model.pt + outputs/temperature.pt  (trained weights)
 #   - src/graph/graph_builder.py + src/graph/config.py
 #   - src/models/optimal_gnn.py
+# Pinned to the chore/cleanup-and-consolidate branch — it has the May-8
+# retrained model. Switch to 'main' once PR #2 is merged.
 import os, subprocess, sys
 
-REPO_URL = 'https://github.com/NehorayChalfon0166/final_project.git'
-REPO_DIR = '/content/final_project' if os.path.exists('/content') else os.path.abspath('final_project')
+REPO_URL    = 'https://github.com/NehorayChalfon0166/final_project.git'
+REPO_BRANCH = 'chore/cleanup-and-consolidate'
+REPO_DIR    = '/content/final_project' if os.path.exists('/content') else os.path.abspath('final_project')
 
 if not os.path.exists(REPO_DIR):
-    subprocess.check_call(['git', 'clone', '--depth', '1', REPO_URL, REPO_DIR])
+    subprocess.check_call(
+        ['git', 'clone', '--depth', '1', '--branch', REPO_BRANCH, REPO_URL, REPO_DIR]
+    )
 else:
     print(f'Already cloned at {REPO_DIR}')
 
 if REPO_DIR not in sys.path:
     sys.path.insert(0, REPO_DIR)
-print('✓ Repo ready at', REPO_DIR)
+print(f'✓ Repo ready at {REPO_DIR}  (branch: {REPO_BRANCH})')
 """
 
 IMPORTS_CODE = """import re
