@@ -14,28 +14,68 @@ import requests
 from . import _cache
 
 
-def fetch_transactions_mempool(wallet_address: str) -> List[Dict]:
-    """Fetch confirmed transactions for a wallet from mempool.space.
+def _mempool_get(url: str, max_retries: int = 3, backoff: float = 5.0, timeout: int = 15):
+    """GET with backoff on 429 / transient errors. Mirrors notebooks/colab_wallet_analyzer.ipynb _get."""
+    headers = {'User-Agent': 'Mozilla/5.0'}
+    last_err = None
+    for attempt in range(max_retries):
+        try:
+            r = requests.get(url, timeout=timeout, headers=headers)
+            if r.status_code == 429:
+                time.sleep(backoff)
+                continue
+            r.raise_for_status()
+            return r.json()
+        except requests.RequestException as e:
+            last_err = e
+            if attempt < max_retries - 1:
+                time.sleep(backoff)
+    raise RuntimeError(f"mempool.space request failed after {max_retries} tries: {last_err}")
 
-    Uses /txs/chain (max 25 confirmed per page) instead of /txs (50
-    confirmed+mempool) to bound payload size on heavy exchange-style wallets,
-    which can otherwise return tens of MB.
+
+def fetch_transactions_mempool(
+    wallet_address: str,
+    max_pages: int = 2,
+    sleep_between: float = 0.5,
+) -> List[Dict]:
+    """Fetch transactions for a wallet from mempool.space.
+
+    Matches notebooks/colab_wallet_analyzer.ipynb: first page from /txs
+    (~50 txs, confirmed+mempool) then paginate via /txs/chain/{last_txid}
+    (~25 confirmed each). Cap at max_pages pages so heavy exchange wallets
+    don't blow up payload size. The graph builder filters unconfirmed txs.
     """
     print(f"   Fetching transactions from Mempool.space for {wallet_address}...")
     try:
-        r = requests.get(
-            f"https://mempool.space/api/address/{wallet_address}/txs/chain",
-            headers={'User-Agent': 'Mozilla/5.0'},
-            timeout=30,
-        )
-        if r.status_code == 200:
-            txs = r.json()
-            print(f"   Found {len(txs)} transactions")
-            return txs
-        print(f"   API returned status {r.status_code}")
-    except Exception as e:
-        print(f"   Error fetching transactions: {e}")
-    return []
+        first = _mempool_get(f"https://mempool.space/api/address/{wallet_address}/txs")
+    except RuntimeError as e:
+        print(f"   {e}")
+        return []
+    if not first:
+        print("   Found 0 transactions")
+        return []
+
+    all_txs = list(first)
+    last_id = first[-1].get('txid')
+    for _ in range(max_pages - 1):
+        if not last_id:
+            break
+        time.sleep(sleep_between)
+        try:
+            page = _mempool_get(
+                f"https://mempool.space/api/address/{wallet_address}/txs/chain/{last_id}"
+            )
+        except RuntimeError:
+            break
+        if not page:
+            break
+        all_txs.extend(page)
+        last_id = page[-1].get('txid')
+        if len(page) < 25:
+            break
+
+    print(f"   Found {len(all_txs)} transactions")
+    return all_txs
 
 
 def _fetch_address_stats(wallet_address: str) -> Dict[str, Any]:

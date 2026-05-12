@@ -1,6 +1,6 @@
 # Call Flow
 
-Function-level view of how the three entry points (training pipeline, FastAPI backend, standalone CLI) move through the codebase. All three load the same trained model from `outputs/gnn_model.pt` + `outputs/temperature.pt`.
+Function-level view of how the two entry points (training pipeline, FastAPI backend) move through the codebase. Both load the same trained model from `outputs/gnn_model.pt` + `outputs/temperature.pt`.
 
 ---
 
@@ -12,10 +12,9 @@ src/features/output/    engineered training CSVs                          [PRODU
 graph_data/cache/       per-address cached mempool.space JSON             [PRODUCED+CONSUMED by --graphs]
 graph_data/graphs/      materialized PyG .pt ego-graphs                   [PRODUCED by --graphs, CONSUMED by --train/--evaluate]
 graph_data/metadata/    per-split build progress                          [PRODUCED+CONSUMED by --graphs]
-outputs/                trained model + eval/baseline artifacts           [PRODUCED by --train/--baseline/--evaluate, CONSUMED by Backend + standalone]
+outputs/                trained model + eval/baseline artifacts           [PRODUCED by --train/--baseline/--evaluate, CONSUMED by Backend]
 Backend/                FastAPI app                                       [serves Frontend, reads outputs/]
 Frontend/               React+Vite SPA                                    [calls Backend]
-standalone/             self-contained CLI (inlined copy of model+graph)  [reads outputs/]
 ```
 
 ---
@@ -114,28 +113,6 @@ In-memory caches (Backend/routes/utils/model_fit_utils.py):
 - `_MODEL_CACHE` — model + temperature + device, persistent across requests.
 - `_TX_CACHE`, `_STATS_CACHE`, `_GRAPH_CACHE` — per-address, TTL 300s.
 - `_TX_INFLIGHT`, `_STATS_INFLIGHT` — threading events to dedup concurrent fetches for the same address.
-
----
-
-## Standalone: `python standalone/wallet_analyzer.py {ADDRESS}`
-
-```
-main() → analyze_address()
-  ├─ fetch_transactions(addr)
-  │   → mempool.space/api/address/{addr}/txs
-  ├─ EgoGraphBuilder.build_graph_for_new_address()
-  │   [inlined copy of src/graph/graph_builder.py — kept in sync via
-  │    scripts/regenerate_standalone.py]
-  ├─ run_inference(graph, model_path)
-  │   ├─ load OptimalBitcoinGNN from model_path
-  │   │   [inlined copy of src/models/optimal_gnn.py]
-  │   ├─ load temperature from {model_dir}/temperature.pt
-  │   └─ forward → logits / temperature → softmax
-  ├─ compute_feature_importance() (saliency)
-  └─ optional: save charts to analyses/{addr_short}/
-```
-
-The standalone is intentionally self-contained so it can be zipped and shared. The inlined copies of the model and graph builder are regenerated from `src/` by `scripts/regenerate_standalone.py` whenever the upstream code changes.
 
 ---
 
