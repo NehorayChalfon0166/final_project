@@ -25,8 +25,8 @@ The naming `src/features/output/` (training CSVs) vs `outputs/` (trained model +
 
 ### Graph data download
 Building ego-graphs for the full datasets is still in progress.
-- Train: 9,499 / 86,876 wallets done (~11%)
-- Test:  8,033 / 21,720 wallets done (~37%)
+- Train: 65,851 / 86,870 wallets done (~76%, 45 failed)
+- Test:  14,737 / 21,718 wallets done (~68%, 18 failed)
 
 Resume with `python run_pipeline.py --graphs --split train` (or `--split test`, or omit for both). The pipeline reads progress from `graph_data/metadata/progress_*.json`; safe to interrupt and re-run.
 
