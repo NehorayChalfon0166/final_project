@@ -24,12 +24,17 @@ FRONTEND_INDEX_FILE = os.path.join(FRONTEND_DIST_DIR, "index.html")
 
 
 def get_ssl_config():
-    requested_port = os.environ.get("API_PORT")
-    use_https = os.environ.get("USE_HTTPS", "false").lower() == "true" or requested_port == "443"
     keyfile = os.environ.get("SSL_KEYFILE", os.path.join(os.path.dirname(__file__), "privkey.pem"))
     certfile = os.environ.get("SSL_CERTFILE", os.path.join(os.path.dirname(__file__), "fullchain.pem"))
+    certs_available = os.path.exists(keyfile) and os.path.exists(certfile)
+    requested_https = os.environ.get("USE_HTTPS")
 
-    if use_https and os.path.exists(keyfile) and os.path.exists(certfile):
+    if requested_https is None:
+        use_https = certs_available
+    else:
+        use_https = requested_https.lower() == "true"
+
+    if use_https and certs_available:
         return {
             "ssl_keyfile": keyfile,
             "ssl_certfile": certfile,
@@ -93,8 +98,8 @@ else:
 if __name__ == "__main__":
     import uvicorn
     debug = os.environ.get("DEBUG", "true").lower() == "true"
-    host = os.environ.get("API_HOST", "0.0.0.0")
     ssl_config = get_ssl_config()
+    host = os.environ.get("API_HOST", "0.0.0.0" if ssl_config else "127.0.0.1")
     default_port = "443" if ssl_config else "8000"
     port = int(os.environ.get("API_PORT", default_port))
     scheme = "https" if ssl_config else "http"
