@@ -1,5 +1,6 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 
 import sys
 import os
@@ -18,9 +19,13 @@ app = FastAPI(
     version="1.0.0"
 )
 
+FRONTEND_DIST_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "Frontend", "dist"))
+FRONTEND_INDEX_FILE = os.path.join(FRONTEND_DIST_DIR, "index.html")
+
 
 def get_ssl_config():
-    use_https = os.environ.get("USE_HTTPS", "false").lower() == "true"
+    requested_port = os.environ.get("API_PORT")
+    use_https = os.environ.get("USE_HTTPS", "false").lower() == "true" or requested_port == "443"
     keyfile = os.environ.get("SSL_KEYFILE", os.path.join(os.path.dirname(__file__), "privkey.pem"))
     certfile = os.environ.get("SSL_CERTFILE", os.path.join(os.path.dirname(__file__), "fullchain.pem"))
 
@@ -51,6 +56,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "https://CryptoTrace.cs.bgu.ac.il",
+        "https://www.CryptoTrace.cs.bgu.ac.il",
         "http://localhost:5173",
         "http://127.0.0.1:5173",
         "http://localhost:3000",
@@ -64,15 +70,30 @@ app.add_middleware(
 app.include_router(health.router, prefix="/api/v1", tags=["health"])
 app.include_router(wallet.router, prefix="/api/v1", tags=["wallet"])
 
-# Root endpoint
-@app.get("/")
-async def root():
-    return {"message": "Welcome to the FastAPI Backend"}
+if os.path.isfile(FRONTEND_INDEX_FILE):
+
+    @app.get("/{requested_path:path}", include_in_schema=False)
+    async def serve_frontend(requested_path: str):
+        if requested_path.startswith("api/") or requested_path in {"docs", "redoc", "openapi.json"}:
+            raise HTTPException(status_code=404)
+
+        if requested_path:
+            candidate_path = os.path.abspath(os.path.join(FRONTEND_DIST_DIR, requested_path))
+            if candidate_path.startswith(FRONTEND_DIST_DIR + os.sep) and os.path.isfile(candidate_path):
+                return FileResponse(candidate_path)
+
+        return FileResponse(FRONTEND_INDEX_FILE)
+
+else:
+
+    @app.get("/")
+    async def root():
+        return {"message": "Welcome to the FastAPI Backend"}
 
 if __name__ == "__main__":
     import uvicorn
     debug = os.environ.get("DEBUG", "true").lower() == "true"
-    host = os.environ.get("API_HOST", "127.0.0.1")
+    host = os.environ.get("API_HOST", "0.0.0.0")
     ssl_config = get_ssl_config()
     default_port = "443" if ssl_config else "8000"
     port = int(os.environ.get("API_PORT", default_port))

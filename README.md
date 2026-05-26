@@ -24,8 +24,8 @@ npm run dev
 ```
 
 **Access:**
-- Frontend: http://localhost:5173
-- Backend API: http://localhost:8000/docs
+- Frontend: https://CryptoTrace.cs.bgu.ac.il
+- Backend API: https://CryptoTrace.cs.bgu.ac.il/docs
 
 ## Training Pipeline
 

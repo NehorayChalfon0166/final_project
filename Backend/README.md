@@ -33,9 +33,9 @@ python main.py
 ```
 
 The API will be available at:
-- **Server**: http://localhost:8000
-- **Swagger UI**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
+- **Server**: https://CryptoTrace.cs.bgu.ac.il
+- **Swagger UI**: https://CryptoTrace.cs.bgu.ac.il/docs
+- **ReDoc**: https://CryptoTrace.cs.bgu.ac.il/redoc
 
 ## 📡 API Endpoints
 
