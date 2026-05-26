@@ -179,7 +179,12 @@ MODEL_PATH=../models/crypto_gnn_model.pt
 API_HOST=127.0.0.1
 API_PORT=8000
 DEBUG=True
+USE_HTTPS=False
+SSL_KEYFILE=./privkey.pem
+SSL_CERTFILE=./fullchain.pem
 ```
+
+For local development, keep `API_HOST=127.0.0.1` and `USE_HTTPS=False`. For production TLS termination directly in uvicorn, set `USE_HTTPS=True` and point `SSL_KEYFILE` and `SSL_CERTFILE` to your certificate files. If you are behind a reverse proxy, keep `USE_HTTPS=False` and let the proxy terminate TLS.
 
 ### Model Path
 

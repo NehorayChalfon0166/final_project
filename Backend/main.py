@@ -18,6 +18,20 @@ app = FastAPI(
     version="1.0.0"
 )
 
+
+def get_ssl_config():
+    use_https = os.environ.get("USE_HTTPS", "false").lower() == "true"
+    keyfile = os.environ.get("SSL_KEYFILE", os.path.join(os.path.dirname(__file__), "privkey.pem"))
+    certfile = os.environ.get("SSL_CERTFILE", os.path.join(os.path.dirname(__file__), "fullchain.pem"))
+
+    if use_https and os.path.exists(keyfile) and os.path.exists(certfile):
+        return {
+            "ssl_keyfile": keyfile,
+            "ssl_certfile": certfile,
+        }
+
+    return {}
+
 @app.on_event("startup")
 async def startup_event():
     print("✓ Server starting up...")
@@ -36,6 +50,7 @@ async def shutdown_event():
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
+        "https://CryptoTrace.cs.bgu.ac.il",
         "http://localhost:5173",
         "http://127.0.0.1:5173",
         "http://localhost:3000",
@@ -58,7 +73,10 @@ if __name__ == "__main__":
     import uvicorn
     debug = os.environ.get("DEBUG", "true").lower() == "true"
     host = os.environ.get("API_HOST", "127.0.0.1")
-    port = int(os.environ.get("API_PORT", "8000"))
-    print(f"Starting server on http://{host}:{port}")
-    print(f"Docs available at http://{host}:{port}/docs")
-    uvicorn.run("main:app", host=host, port=port, reload=debug)
+    ssl_config = get_ssl_config()
+    default_port = "443" if ssl_config else "8000"
+    port = int(os.environ.get("API_PORT", default_port))
+    scheme = "https" if ssl_config else "http"
+    print(f"Starting server on {scheme}://{host}:{port}")
+    print(f"Docs available at {scheme}://{host}:{port}/docs")
+    uvicorn.run("main:app", host=host, port=port, reload=debug, **ssl_config)
