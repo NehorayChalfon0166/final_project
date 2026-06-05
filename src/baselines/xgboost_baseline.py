@@ -1,12 +1,15 @@
 """
 XGBoost Baseline
 ================
-Tabular baseline trained and evaluated on exactly the same split the GNN sees:
-    train on src/features/output/train_dataset.csv
-    test  on src/features/output/test_dataset.csv
+Tabular baseline trained and evaluated on exactly the same wallets the GNN sees:
+    train on the rows of src/features/output/train_dataset.csv whose address
+           has a matching .pt under graph_data/graphs/train/
+    test  on the rows of src/features/output/test_dataset.csv whose address
+           has a matching .pt under graph_data/graphs/test/
 
 Single fit, single eval — no cross-validation. This matches the GNN's protocol
-so the comparison printed by ``run_pipeline.py --evaluate`` is apples-to-apples.
+row-for-row so the comparison printed by ``run_pipeline.py --evaluate`` is
+apples-to-apples.
 
 Usage:
     from src.baselines import XGBoostBaseline
@@ -39,7 +42,25 @@ from sklearn.preprocessing import StandardScaler
 from xgboost import XGBClassifier
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-from src.graph.config import FEATURE_COLUMNS, FEATURE_DIR
+
+# Importing `src.graph.config` would trigger `src/graph/__init__.py`, which
+# eagerly loads `dataloader` and therefore PyTorch. PyTorch + sklearn +
+# system libomp end up loading three OpenMP runtimes into one process on
+# macOS, which deadlocks at import time. The baseline doesn't need torch at
+# all, so we load `config.py` as a standalone module file to skip the
+# package init.
+import importlib.util as _importlib_util
+
+_CONFIG_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    "src", "graph", "config.py",
+)
+_spec = _importlib_util.spec_from_file_location("_graph_config_standalone", _CONFIG_PATH)
+_config = _importlib_util.module_from_spec(_spec)
+_spec.loader.exec_module(_config)
+FEATURE_COLUMNS = _config.FEATURE_COLUMNS
+FEATURE_DIR = _config.FEATURE_DIR
+GRAPHS_DIR = _config.GRAPHS_DIR
 
 
 @dataclass
@@ -94,8 +115,16 @@ class XGBoostBaseline:
         train_path: Optional[str] = None,
         test_path: Optional[str] = None,
         features: Optional[list] = None,
+        restrict_to_cached_graphs: bool = True,
     ) -> None:
-        """Load the same train/test CSVs the GNN dataloader uses."""
+        """Load the same train/test CSVs the GNN dataloader uses.
+
+        When ``restrict_to_cached_graphs`` is True (the default), rows are
+        filtered to addresses that have a matching ``.pt`` file under
+        ``graph_data/graphs/{train,test}/`` — i.e. the exact wallets the GNN
+        trains and evaluates on. The XGBoost protocol then matches the GNN
+        protocol row-for-row.
+        """
         train_path = train_path or os.path.join(FEATURE_DIR, "train_dataset.csv")
         test_path = test_path or os.path.join(FEATURE_DIR, "test_dataset.csv")
         features = features or FEATURE_COLUMNS
@@ -104,6 +133,10 @@ class XGBoostBaseline:
         train_df = pd.read_csv(train_path)
         print(f"Loading test  from {test_path}")
         test_df = pd.read_csv(test_path)
+
+        if restrict_to_cached_graphs:
+            train_df = self._filter_to_cached_graphs(train_df, split="train")
+            test_df = self._filter_to_cached_graphs(test_df, split="test")
 
         # Fit the scaler on train only — test sees the same transform.
         self.X_train = self.scaler.fit_transform(train_df[features].values)
@@ -118,6 +151,18 @@ class XGBoostBaseline:
             f"Test:  {len(self.y_test):,} samples ({np.mean(self.y_test):.1%} criminal)"
         )
         print(f"Features: {len(features)}")
+
+    @staticmethod
+    def _filter_to_cached_graphs(df: pd.DataFrame, split: str) -> pd.DataFrame:
+        graph_dir = os.path.join(GRAPHS_DIR, split)
+        cached = {f[:-3] for f in os.listdir(graph_dir) if f.endswith(".pt")}
+        before = len(df)
+        df = df[df["address"].astype(str).isin(cached)].reset_index(drop=True)
+        print(
+            f"  Filtered {split}: {before:,} -> {len(df):,} rows "
+            f"(kept only addresses with a cached .pt graph)"
+        )
+        return df
 
     def train(self) -> Results:
         """Fit on train, evaluate on test."""
@@ -166,7 +211,7 @@ class XGBoostBaseline:
         output_path = self.output_dir / filename
         payload = {
             "model": "XGBoost",
-            "protocol": "single fit on train_dataset.csv, evaluation on test_dataset.csv (matches GNN)",
+            "protocol": "single fit on train rows that have a cached .pt graph, evaluation on test rows that have a cached .pt graph (matches GNN row-for-row)",
             "results": asdict(self.results),
             "features": FEATURE_COLUMNS,
             "timestamp": datetime.now().isoformat(),

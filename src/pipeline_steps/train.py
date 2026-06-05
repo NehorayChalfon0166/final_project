@@ -38,6 +38,9 @@ def step_train_gnn(epochs: int = 100, batch_size: int = 64):
     logger.info(f"Total training graphs: {len(full_train_dataset):,}")
     logger.info(f"Test graphs: {len(test_dataset):,}")
 
+    # MPS attempted earlier — first epoch hung past 7 min on this graph workload
+    # (likely silent CPU fallback for unsupported scatter ops in PyG). Stick to
+    # CPU until we have a clean MPS path verified.
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     logger.info(f"Using device: {device}")
 

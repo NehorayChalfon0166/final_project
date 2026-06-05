@@ -1,0 +1,242 @@
+\documentclass[11pt]{article}
+
+\usepackage[a4paper,top=0.9in,bottom=0.9in,left=0.95in,right=0.95in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+\usepackage{titlesec}
+
+\titleformat{\section}{\large\bfseries}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{0.5em}{}
+\titlespacing*{\section}{0pt}{0.7\baselineskip}{0.25\baselineskip}
+\titlespacing*{\subsection}{0pt}{0.5\baselineskip}{0.15\baselineskip}
+
+\setlist{topsep=2pt,itemsep=1pt,parsep=0pt}
+
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\setlength{\emergencystretch}{3em}
+\hbadness=10000
+
+\title{\vspace{-1.2cm}Bitcoin Wallet Risk Analyzer\\[2pt]\large Test Plan and Evaluation Document}
+\author{Ori Sinvani \textnormal{(325770824)} \quad Harel Brener \textnormal{(214179012)} \quad Nehoray Chalfon \textnormal{(325833531)}\\[3pt]
+\normalsize\normalfont Project Advisor: Ofer Zevin}
+\date{May 2026}
+
+\begin{document}
+\maketitle
+\vspace{-0.6cm}
+
+\section{Project Summary}
+
+The goal of this project is to decide, given a Bitcoin wallet address, whether it has been used for criminal
+activity or for benign activity. The classifier is a graph neural network that reads a small one-hop neighbourhood
+around the wallet: the wallet itself sits at the centre with twelve behavioural features describing its lifetime,
+how often it transacts, its fee patterns, and the size and direction of the amounts it sends and receives. The
+counter-parties the wallet has interacted with form the surrounding nodes, and each interaction becomes a directed
+edge carrying its log amount, its direction, and a normalised timestamp. A three-layer GATv2 graph attention
+network with multi-head attention, residual connections, and a hybrid readout aggregates this neighbourhood into a
+single risk score. Two real-world labelled datasets, REAL-CATS and Elliptic++, are merged into a balanced corpus
+that is split once into a training set and a held-out test set.
+
+The headline result on the held-out test split is an $F_1$ of about 92\% for the GNN, against about 84\% for an
+XGBoost classifier trained on the same twelve tabular features without the graph context. The roughly eight-point
+gap is the central finding: a one-hop view of the surrounding transaction structure carries information that the
+tabular features alone do not capture.
+
+\section{Experimental Data}\label{sec:data}
+
+\paragraph{Sources.}
+\begin{itemize}
+  \item \textbf{REAL-CATS} (Su et al., 2024). An expert-curated dataset of Bitcoin wallets linked to criminal
+        activity, compiled by domain analysts from public criminal-wallet reports (sanctions lists, ransomware
+        disclosures, law-enforcement notices, and similar sources), paired with a benign control set. The labels
+        come from human reporting rather than from on-chain behavioural inference. The dataset was released in
+        2024, with its underlying material collected through roughly 2023 to 2024.
+  \item \textbf{Elliptic++} (Elmougy and Liu, KDD 2023). An extension of the original Elliptic dataset (Weber et
+        al., 2019). The underlying Bitcoin transactions span roughly 2014 to 2017 and are organised into 49
+        time-steps of about two weeks each. The dataset was released in 2023.
+\end{itemize}
+
+\paragraph{Unified feature matrix.}
+Both datasets are mapped onto a common schema of nineteen features that can be computed from either source: eleven
+shared base features (total transactions, total sent and received amounts, total fees, lifetime, send and receive
+counts, max and min sent and received), three additional features that can be calculated for both datasets (mean
+blocks between transactions, mean fee share, average transaction size), and five engineered features
+(send/receive ratio, activity rate, fee per transaction, transaction-size range, and in/out balance). Every
+feature is also stored as its $\log(1+x)$ transform. After correlation pruning, in which seven features that were
+highly correlated with another feature ($r > 0.95$) were dropped, the model uses the twelve least-redundant
+log-scaled features.
+
+\paragraph{Balanced split.}
+A balancing step drops cross-source addresses whose labels disagree, collapses duplicates whose labels agree, takes
+every criminal wallet and a matched random sample of benign wallets within each source, and then produces a
+stratified 80/20 train/test split keyed on the joint label and source label. The result is that both classes and
+both data sources are represented in identical proportions in the training set and in the test set. The random
+seed is fixed throughout.
+
+\begin{table}[h]
+\centering\small
+\begin{tabular}{lrrrrr}
+\toprule
+Split & Rows & Criminal & Benign & REAL-CATS & Elliptic++ \\
+\midrule
+Training set & 86{,}870 & 43{,}435 & 43{,}435 & 64{,}044 & 22{,}826 \\
+Test set     & 21{,}718 & 10{,}859 & 10{,}859 & 16{,}012 &  5{,}706 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Per-wallet ego-graphs.}
+For each wallet a small graph is built. The wallet sits at the centre carrying the twelve log features. Every
+counter-party it has transacted with appears as a ghost node, and at forward time the model replaces the
+zero-feature placeholder of each ghost node with a learned embedding plus a node-type embedding so that ghost
+neighbours are not silently treated as fresh wallets with all-zero behaviour. Each interaction is encoded as a
+directed edge with three features: the log of the amount transferred, a direction flag (1 for outgoing, 0 for
+incoming), and a timestamp normalised against the Bitcoin genesis block.
+
+\section{Baseline Models}
+
+\begin{itemize}
+  \item \textbf{XGBoost (tabular).} Trained on the same training set with the same twelve features and a standard
+        scaler, evaluated on the same test set. The contrast with the GNN therefore isolates the value of the
+        one-hop neighbourhood structure: same features, same split, only the graph view differs.
+  \item \textbf{Basic GCN (graph baseline).} A vanilla graph convolutional network applied to the same ego-graphs,
+        without our model's architectural additions: no learnable ghost-node embedding, no input-to-final residual
+        connection, and a plain mean-pool readout instead of the hybrid readout. The contrast with the GNN
+        isolates the value of those additions, given that the underlying graph view is the same.
+\end{itemize}
+
+\section{Evaluation Metrics}
+
+The model is judged primarily on $F_1$ on the held-out test split, complemented by the standard set of
+classification metrics so that a single number does not hide the full picture.
+
+\begin{table}[h]
+\centering\small
+\begin{tabularx}{\linewidth}{l Y}
+\toprule
+\textbf{Family} & \textbf{Metric} \\
+\midrule
+Discrimination     & Accuracy, Precision, Recall, $F_1$, ROC-AUC, PR-AUC \\
+Per-class          & Precision, Recall, and $F_1$ for the benign class and the criminal class separately \\
+Confusion          & Confusion matrix on the test set \\
+Calibration        & Brier score, Expected Calibration Error (ECE), and a reliability diagram \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\noindent Model selection during training uses the validation $F_1$, with early stopping. Beyond the table above,
+the evaluation step also dumps the misclassified test addresses to CSV (one file for false positives, one for
+false negatives) and writes the per-feature gradient-saliency scores to JSON. These files are saved for future
+analysis.
+
+\section{Experimental Setting}
+
+\paragraph{Train, validation, and test split.}
+The 80/20 stratified split described in Section~\ref{sec:data} produces the canonical training and test sets.
+Inside training, the training set is further partitioned 85/15 into a training pool and a validation pool using a
+fixed seed, so the validation pool is identical across runs and is used both for early stopping and for picking
+the best epoch.
+
+\paragraph{Calibration split.}
+A small slice is carved out of the training pool before the train/validation split and is reserved exclusively for
+post-hoc temperature scaling. An LBFGS optimiser fits a single temperature parameter on the negative log-likelihood
+of this slice, and the resulting scalar is saved alongside the model and applied at inference time in both the
+backend and the analysis notebook.
+
+\paragraph{Train/inference parity.}
+At inference time, when a live wallet is analysed, the same feature pipeline is run on the raw transaction data
+that was used to build the training matrix: satoshi-to-BTC scaling, $\log(1+x)$ transform, and the same clipping
+ranges that were applied during dataset construction (activity rate clipped to $[0, 1000]$, send/receive ratio and
+in/out balance clipped to $[0, 100]$, fee share clipped to $[0, 1]$, and transaction-size range computed from
+sent-only amounts).
+
+\paragraph{Reproducibility.}
+A single random seed (42) is used for the dataset split, for the validation sub-split, for the dataloader shuffle,
+and for the torch RNG. Every evaluation output can be regenerated from the saved model weights and calibration
+scalar.
+
+\section{Parameters}\label{sec:params}
+
+\begin{table}[h]
+\centering\small
+\begin{tabularx}{\linewidth}{l Y}
+\toprule
+\textbf{Component} & \textbf{Setting} \\
+\midrule
+GNN architecture     & 3 $\times$ GATv2Conv layers (4, 4, and 2 attention heads), hidden size 64, edge dim 3 \\
+                     & dropout 0.2, final dropout 0.3, DropEdge rate 0.1 \\
+                     & hybrid readout: centre node $\oplus$ mean-pool $\oplus$ max-pool ($3 \times 64 = 192$) \\
+                     & classifier $192 \rightarrow 64 \rightarrow 2$ \\
+Optimiser            & AdamW, learning rate $10^{-3}$, weight decay $0.01$, gradient clip max-norm $1.0$ \\
+Scheduler            & OneCycleLR, max learning rate $5 \times 10^{-3}$, pct-start $0.1$, cosine anneal \\
+Loss                 & Cross-entropy, label smoothing $0$ \\
+Schedule             & up to 150 epochs, batch size 64, early stop on validation $F_1$, patience 20 \\
+Calibration          & LBFGS, max-iter 50, learning rate $0.01$ \\
+XGBoost              & n-estimators $= 200$, max-depth $= 8$, lr $= 0.1$, subsample $= 0.8$, colsample-bytree $= 0.8$ \\
+Basic GCN            & 3 $\times$ GCNConv layers, hidden size 64, mean-pool readout, dropout 0.2 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Test Plan: Detailed Breakdown}\label{sec:tests}
+
+The tests are grouped into two blocks: \textit{model quality}, which checks how well the model performs and
+generalises against the two baselines, and \textit{model behaviour}, which probes what it has actually learned.
+Each test produces a JSON or CSV file that can be reviewed after the run.
+
+\subsection*{Model quality}
+
+\begin{description}[leftmargin=0pt,labelindent=0pt,style=nextline,itemsep=4pt,parsep=0pt]
+  \item[\textit{Held-out test evaluation.}] Run the evaluation pipeline end to end and report Accuracy, Precision,
+    Recall, $F_1$, ROC-AUC, and PR-AUC for our GNN, for the XGBoost tabular baseline, and for the Basic GCN
+    graph baseline. The two contrasts isolate the value of the graph view (XGBoost vs.\ GNN) and the value of
+    our architectural additions on top of a plain GCN (Basic GCN vs.\ GNN).
+  \item[\textit{Per-source generalisation.}] Restrict the same metrics to the REAL-CATS-only and Elliptic++-only
+    subsets of the test split, to make sure neither source is carrying the headline number on its own.
+  \item[\textit{Calibration quality.}] Brier score, Expected Calibration Error, and a reliability diagram on the
+    held-out test set after temperature scaling, so that the predicted probabilities can be used as risk
+    thresholds downstream.
+  \item[\textit{Live-wallet evaluation.}] Build a small evaluation set of roughly 200 live wallet addresses
+    (sampled outside the training distribution) and measure precision at the top-$k$ predicted-criminal scores.
+    This is the strongest available test of generalisation to fresh, real-world traffic.
+\end{description}
+
+\subsection*{Model behaviour}
+
+\begin{description}[leftmargin=0pt,labelindent=0pt,style=nextline,itemsep=4pt,parsep=0pt]
+  \item[\textit{Misclassification dump.}] Export the false positives and false negatives on the held-out test
+    set to two CSV files, sorted by predicted probability. Saved for future analysis.
+  \item[\textit{Interpretability.}] Gradient-saliency feature importance over the twelve input features; rank
+    the top drivers for each class and check whether they are stable across the criminal and benign cohorts.
+\end{description}
+
+\section{Schedule and Timeline}
+
+The work runs over seven weeks, ending with the final submission on \textbf{25 June 2026}.
+
+\begin{table}[h]
+\centering\small
+\begin{tabularx}{\linewidth}{l l Y}
+\toprule
+\textbf{Phase} & \textbf{Theme} & \textbf{Work} \\
+\midrule
+Week 1 & Data completion       & Finish the remaining graph downloads (from $\sim$38k to the full 86k training graphs); meeting with the project advisor. \\
+Week 2 & Model retraining      & Retrain the GNN on the full training set. \\
+Week 3 & Live-wallet evaluation & Build the live evaluation set ($\sim$200 addresses) and measure precision at top-$k$. \\
+Week 4 & Deployment            & Deploy the backend and frontend to the university server. \\
+Week 5 & Release and report    & Write the detailed evaluation report. \\
+Week 6 & Final prep            & Build the final slide deck. \\
+Week 7 & Buffer and polish     & Polish, dry runs, and final review before submission. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\end{document}

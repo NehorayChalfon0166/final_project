@@ -1,0 +1,109 @@
+\documentclass[11pt]{article}
+
+\usepackage[a4paper,top=0.7in,bottom=0.7in,left=0.85in,right=0.85in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+\usepackage{titlesec}
+
+\titleformat{\section}{\large\bfseries}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{0.5em}{}
+\titlespacing*{\section}{0pt}{0.4\baselineskip}{0.1\baselineskip}
+\titlespacing*{\subsection}{0pt}{0.3\baselineskip}{0.05\baselineskip}
+
+\setlist{topsep=0pt,itemsep=0pt,parsep=0pt,leftmargin=1.1em}
+\linespread{0.95}
+
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\setlength{\emergencystretch}{3em}
+\hbadness=10000
+
+\title{\vspace{-1.2cm}Bitcoin Wallet Risk Analyzer\\[2pt]\large Project Status Report}
+\author{Ori Sinvani \textnormal{(325770824)} \quad Harel Brener \textnormal{(214179012)} \quad Nehoray Chalfon \textnormal{(325833531)}\\[3pt]
+\normalsize\normalfont Project Advisor: Ofer Zevin}
+\date{May 27, 2026}
+
+\begin{document}
+\maketitle
+\vspace{-1.0cm}
+
+\noindent\textbf{1. Is the development complete?}\quad
+Yes -- the full system is working end to end. The offline side covers everything from preparing
+the data and building the wallet graphs, through training and calibrating the model, to producing
+an evaluation report and an importance score for each input feature. The user-facing side is a
+React web application backed by a FastAPI server that lets a visitor paste a Bitcoin address and
+receive a verdict, an explanation, and supporting transaction information.
+
+\noindent\textbf{2. What is missing?}\quad
+The main gaps are polish rather than core functionality: there is no automated test suite yet;
+the website is a single page and would benefit from a history view and a side-by-side comparison
+view; and the configuration that allows the production website to talk to the production API is
+still applied directly on the server rather than committed to the repository.
+
+\noindent\textbf{3. Is the system deployed?}\quad
+Yes. The website is hosted on the BGU CS department servers and is reachable at
+\href{https://cryptotrace.cs.bgu.ac.il/}{\texttt{https://cryptotrace.cs.bgu.ac.il/}}. In
+addition to the web interface, we ship a Python (Jupyter / Google Colab) notebook that loads the
+trained model and walks through the same analysis on any address the reader supplies, so the
+model can be demonstrated end-to-end without needing access to our server.
+
+\noindent\textbf{4. Have you conducted experiments?}\quad
+Yes. We compared three models head to head, all judged on the same wallets and the same
+labels: (i) our main graph neural network, which reads both the wallet's own behaviour and the
+pattern of its transactions with its neighbours; (ii) an XGBoost classifier that sees only the
+wallet's own twelve summary statistics, with no neighbourhood information; and (iii) a simpler
+graph baseline that sees the neighbourhood but ignores the details of each transaction. Comparing
+the three lets us separate the contribution of each ingredient.
+
+\noindent\textbf{5. How were the experiments conducted?}\quad
+We combined two public datasets of labelled Bitcoin wallets, REAL-CATS (criminal wallets) and
+Elliptic++ (a mix of criminal and benign), removed overlap between them, and balanced the result
+so that exactly half of the wallets are criminal. This produced 86{,}870 wallets for training
+and 21{,}718 held out for testing. For every wallet we asked the public \texttt{mempool.space}
+service for its recent transactions and built a small graph around it: the wallet sits in the
+middle, the parties it transacted with sit around it, and each link records how much was sent,
+in which direction, and when. The main model was trained over multiple epochs with the usual
+safeguards (a validation split, early stopping, and a calibration step so the predicted
+probabilities can be read as honest confidence values). All three models were then evaluated on
+the same held-out wallets so the comparison is fair, and we produced the standard battery of
+diagnostic plots: confusion matrix, ROC curve, reliability diagram, and a per-feature importance
+score.
+
+\noindent\textbf{6. Important results.}\quad
+On the held-out test set:
+
+\vspace{-0.2em}
+\begin{center}
+\small
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Model} & \textbf{F\textsubscript{1}} & \textbf{Accuracy} & \textbf{Recall} & \textbf{ROC-AUC} \\
+\midrule
+Our graph model & \textbf{0.856} & \textbf{0.913} & \textbf{0.897} & \textbf{0.961} \\
+XGBoost (wallet stats only) & 0.835 & 0.836 & 0.827 & 0.920 \\
+Simple graph baseline & 0.633 & 0.761 & 0.674 & 0.809 \\
+\bottomrule
+\end{tabular}
+\end{center}
+\vspace{-0.2em}
+
+Two gaps tell the story. The jump from the simple graph baseline to our model shows that the
+details of each transaction (amount, direction, timing) matter a great deal. The jump from
+XGBoost to our model shows that looking at the wallet's neighbourhood adds information that the
+wallet's own statistics do not capture. The calibration check came back essentially flat, so the
+confidence scores the website displays can be trusted at face value.
+
+\noindent\textbf{7. What is still lacking, and the schedule going forward.}\quad
+\textbf{Now -- mid-June:} add a held-out adversarial test set of recent wallets in neither
+REAL-CATS nor Elliptic++ to stress-test generalisation.
+\textbf{Mid-June -- end of June:} write the final report, polish the live demo, and build the
+presentation deck. \textbf{Early July:} project defence and final submission.
+
+\end{document}

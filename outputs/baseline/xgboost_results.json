@@ -1,26 +1,26 @@
 {
   "model": "XGBoost",
-  "protocol": "single fit on train_dataset.csv, evaluation on test_dataset.csv (matches GNN)",
+  "protocol": "single fit on train rows that have a cached .pt graph, evaluation on test rows that have a cached .pt graph (matches GNN row-for-row)",
   "results": {
-    "accuracy": 0.8364490284556589,
-    "precision": 0.8426334052330489,
-    "recall": 0.8274242563771986,
-    "f1": 0.8349595762475607,
-    "roc_auc": 0.9201224536930068,
+    "accuracy": 0.826010101010101,
+    "precision": 0.8605341246290801,
+    "recall": 0.6729957805907173,
+    "f1": 0.7552977388421925,
+    "roc_auc": 0.9088110898367787,
     "confusion_matrix": [
       [
-        9181,
-        1678
+        6623,
+        517
       ],
       [
-        1874,
-        8985
+        1550,
+        3190
       ]
     ],
-    "n_train_samples": 86870,
-    "n_test_samples": 21718,
+    "n_train_samples": 65849,
+    "n_test_samples": 11880,
     "n_features": 12,
-    "training_time": 0.7842056751251221
+    "training_time": 1.410634994506836
   },
   "features": [
     "lifetime_seconds_log",
@@ -36,5 +36,5 @@
     "max_sent_log",
     "max_received_log"
   ],
-  "timestamp": "2026-05-05T12:10:12.629773"
+  "timestamp": "2026-06-04T15:25:21.862620"
 }

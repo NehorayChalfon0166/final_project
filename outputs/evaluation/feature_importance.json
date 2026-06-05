@@ -1,17 +1,17 @@
 {
   "feature_importance": {
-    "fee_per_tx_log": 0.22852982287419374,
-    "fee_share_mean_log": 0.2057803617232124,
-    "send_receive_ratio_log": 0.149438907946366,
-    "in_out_balance_log": 0.08591694114776668,
-    "tx_size_range_log": 0.06512300217777978,
-    "blocks_btwn_txs_mean_log": 0.053971578050786305,
-    "avg_tx_size_log": 0.049279469091767045,
-    "total_txs_log": 0.047575247385691716,
-    "max_sent_log": 0.044019985464412326,
-    "max_received_log": 0.032221833928157036,
-    "activity_rate_log": 0.020468612269600804,
-    "lifetime_seconds_log": 0.01767423794026617
+    "fee_per_tx_log": 0.6295837834740575,
+    "fee_share_mean_log": 0.18055311887422848,
+    "tx_size_range_log": 0.0414846951324985,
+    "total_txs_log": 0.023780097529480182,
+    "send_receive_ratio_log": 0.02330979429243576,
+    "avg_tx_size_log": 0.01940312419961817,
+    "max_sent_log": 0.018041009841409262,
+    "in_out_balance_log": 0.01618671002769793,
+    "max_received_log": 0.016018006644217462,
+    "blocks_btwn_txs_mean_log": 0.015711703499291248,
+    "activity_rate_log": 0.008123793674398411,
+    "lifetime_seconds_log": 0.007804162810667027
   },
-  "timestamp": "2026-05-09T00:32:47.641717"
+  "timestamp": "2026-06-04T18:42:31.195016"
 }
