@@ -107,3 +107,24 @@ data/realcats/*_progress.txt
 
 # Local Claude Code overrides
 .claude/settings.local.json
+
+# LaTeX build artifacts
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.lof
+*.lot
+*.toc
+*.xdv
+*.out
+
+# Office lock / owner files and scratch temp files
+.~lock.*#
+~$*
+*.tmp
+
+# Dataset backups
+*.bak
+*.pre_useall_bak

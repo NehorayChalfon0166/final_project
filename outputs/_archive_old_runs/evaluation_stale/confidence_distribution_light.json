@@ -1,0 +1,25 @@
+{
+  "temperature": 1.0437822341918945,
+  "splits": [
+    "train",
+    "test"
+  ],
+  "train": {
+    "n": 47608,
+    "n_benign": 32243,
+    "n_criminal": 15365,
+    "mean_confidence": 0.8355900049209595,
+    "median_confidence": 0.9233144521713257,
+    "frac_high_conf_>0.8": 0.7492438245672997,
+    "frac_low_conf_<0.2": 0.03497311376239288
+  },
+  "test": {
+    "n": 13371,
+    "n_benign": 7987,
+    "n_criminal": 5384,
+    "mean_confidence": 0.8320255279541016,
+    "median_confidence": 0.9220085740089417,
+    "frac_high_conf_>0.8": 0.7433251065739287,
+    "frac_low_conf_<0.2": 0.03881534664572583
+  }
+}

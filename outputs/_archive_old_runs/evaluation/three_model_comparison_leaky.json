@@ -1,0 +1,68 @@
+{
+  "shared_test_size": 13371,
+  "models": {
+    "XGBoost": {
+      "accuracy": 0.8004636900755366,
+      "precision": 0.7922944468359879,
+      "recall": 0.6836924219910847,
+      "f1": 0.7339980059820539,
+      "roc_auc": 0.878208466451148,
+      "confusion_matrix": [
+        [
+          7022,
+          965
+        ],
+        [
+          1703,
+          3681
+        ]
+      ],
+      "n_samples": 13371,
+      "n_positive": 5384,
+      "n_negative": 7987
+    },
+    "BasicGCN": {
+      "accuracy": 0.7123625757235809,
+      "precision": 0.626939584021129,
+      "recall": 0.7054234769687965,
+      "f1": 0.6638699528054536,
+      "roc_auc": 0.766324505125435,
+      "confusion_matrix": [
+        [
+          5727,
+          2260
+        ],
+        [
+          1586,
+          3798
+        ]
+      ],
+      "n_samples": 13371,
+      "n_positive": 5384,
+      "n_negative": 7987
+    },
+    "OptimalGNN": {
+      "accuracy": 0.8454117119138433,
+      "precision": 0.761304553332283,
+      "recall": 0.8974739970282318,
+      "f1": 0.8238001875372943,
+      "roc_auc": 0.9137758869306756,
+      "confusion_matrix": [
+        [
+          6472,
+          1515
+        ],
+        [
+          552,
+          4832
+        ]
+      ],
+      "n_samples": 13371,
+      "n_positive": 5384,
+      "n_negative": 7987
+    }
+  },
+  "notes": "All three models are trained and evaluated on exactly the same wallets: the CSV rows whose address has a cached .pt ego-graph. XGBoost is retrained on the train intersection (not the full train_dataset.csv) so it sees the same training samples the GNN saw. Train/test sizes are reported per-model in n_samples.",
+  "shared_train_size": 47608,
+  "timestamp": "2026-06-04T14:41:02.795061"
+}
