@@ -1,12 +1,30 @@
 @echo off
-REM One-click launcher for Windows. Double-click this file.
-REM Creates an isolated Python environment the first time, then runs the
-REM wallet analyzer inside it (so nothing touches your system Python).
+REM One-click launcher for Windows. Download just THIS file and double-click it.
+REM It downloads the analyzer script (if missing), builds an isolated Python
+REM environment, and runs the analyzer inside it.
 
 cd /d "%~dp0"
 
+set "SCRIPT=wallet_analyzer.py"
+set "SCRIPT_URL=https://raw.githubusercontent.com/NehorayChalfon0166/final_project/chore/cleanup-and-consolidate/standalone/wallet_analyzer.py"
 set "VENV=.venv"
 
+REM --- 1. Download the analyzer script if it isn't next to this launcher ---
+if not exist "%SCRIPT%" (
+    echo Downloading %SCRIPT% ...
+    curl -fsSL -o "%SCRIPT%" "%SCRIPT_URL%" 2>nul
+)
+if not exist "%SCRIPT%" (
+    powershell -NoProfile -Command "try { Invoke-WebRequest -UseBasicParsing -Uri '%SCRIPT_URL%' -OutFile '%SCRIPT%' } catch { exit 1 }"
+)
+if not exist "%SCRIPT%" (
+    echo.
+    echo Could not download the analyzer script. Check your internet connection.
+    pause
+    exit /b 1
+)
+
+REM --- 2. Create an isolated environment the first time ---
 if not exist "%VENV%\Scripts\python.exe" (
     echo Creating isolated environment (first run only) ...
     python -m venv "%VENV%"
@@ -19,8 +37,8 @@ if not exist "%VENV%\Scripts\python.exe" (
     )
 )
 
-REM The script itself installs any missing libraries into this venv.
-"%VENV%\Scripts\python.exe" wallet_analyzer.py %*
+REM --- 3. Run it (the script installs any missing libraries into this venv) ---
+"%VENV%\Scripts\python.exe" "%SCRIPT%" %*
 
 echo.
 pause

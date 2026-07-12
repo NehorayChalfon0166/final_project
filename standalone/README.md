@@ -17,12 +17,19 @@ When you run it, it will automatically:
 
 ## One-click run
 
+Download **just the launcher** for your OS, put it in an empty folder, and
+double-click it — it fetches the analyzer script and everything else for you:
+
 - **macOS** — double-click **`run.command`** in Finder.
   (First time only: right-click → *Open* to bypass Gatekeeper.)
 - **Windows** — double-click **`run.bat`**.
 
-These launchers build an isolated environment in `.venv/` so nothing touches
-your system Python.
+On first run each launcher will:
+1. download `wallet_analyzer.py` from GitHub (if it isn't already next to it),
+2. build an isolated environment in `.venv/` (nothing touches your system Python),
+3. install the libraries and run the analyzer.
+
+So you only need the one `run.command` / `run.bat` file to get started.
 
 ## Command line
 
