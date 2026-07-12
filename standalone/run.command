@@ -27,9 +27,5 @@ if [ ! -d "$VENV" ]; then
     "$PY" -m venv "$VENV"
 fi
 
-# --- 3. Run it (the script installs any missing libraries into this venv) ---
+# --- 3. Run it (loops until you press Ctrl+C; installs libraries as needed) ---
 "$VENV/bin/python" "$SCRIPT" "$@"
-
-echo ""
-read -n 1 -s -r -p "Press any key to close..."
-echo ""

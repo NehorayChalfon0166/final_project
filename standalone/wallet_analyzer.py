@@ -713,12 +713,14 @@ def render_report(report: dict) -> str:
 # =============================================================================
 # SECTION 8 — Orchestration / CLI
 # =============================================================================
-def analyze(address: str) -> dict:
+def analyze(address: str, model_bundle=None) -> dict:
     if not is_valid_bitcoin_address(address):
         raise ValueError(f"Invalid Bitcoin address format: {address!r}")
 
-    print(f"Loading model ...")
-    model, temperature, device = load_model()
+    if model_bundle is None:
+        print("Loading model ...")
+        model_bundle = load_model()
+    model, temperature, device = model_bundle
 
     print(f"Fetching wallet data for {address} ...")
     stats = fetch_address_stats(address)
@@ -744,31 +746,46 @@ def main() -> None:
     parser.add_argument("--json", action="store_true", help="print raw JSON instead of a report")
     args = parser.parse_args()
 
-    address = args.address
-    if not address:
-        try:
-            address = input("Enter a Bitcoin wallet address: ").strip()
-        except (EOFError, KeyboardInterrupt):
-            print("\nNo address provided. Exiting.")
-            return
-    if not address:
-        print("No address provided. Exiting.")
-        return
+    model_bundle = None      # loaded once, reused for every wallet
+    pending = args.address   # analyze the CLI-provided address first, if any
+    first = True
 
     try:
-        report = analyze(address)
-    except (ValueError, RuntimeError) as exc:
-        print(f"\n[!] {exc}")
-        sys.exit(1)
-    except requests.RequestException as exc:
-        print(f"\n[!] Network error talking to mempool.space: {exc}")
-        sys.exit(1)
+        while True:
+            if pending:
+                address, pending = pending, None
+            else:
+                prompt = "Enter a Bitcoin wallet address" if first else "Check another wallet"
+                address = input(f"\n{prompt} (press Ctrl+C to close): ").strip()
+            first = False
 
-    print()
-    if args.json:
-        print(json.dumps(report, indent=2))
-    else:
-        print(render_report(report))
+            if not address:
+                continue
+
+            if not is_valid_bitcoin_address(address):
+                print(f"[!] Invalid Bitcoin address format: {address!r}")
+                continue
+
+            if model_bundle is None:
+                print("Loading model ...")
+                model_bundle = load_model()
+
+            try:
+                report = analyze(address, model_bundle)
+            except (ValueError, RuntimeError) as exc:
+                print(f"[!] {exc}")
+                continue
+            except requests.RequestException as exc:
+                print(f"[!] Network error talking to mempool.space: {exc}")
+                continue
+
+            print()
+            if args.json:
+                print(json.dumps(report, indent=2))
+            else:
+                print(render_report(report))
+    except (EOFError, KeyboardInterrupt):
+        print("\nClosing. Goodbye.")
 
 
 if __name__ == "__main__":

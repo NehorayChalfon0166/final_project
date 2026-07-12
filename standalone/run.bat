@@ -37,8 +37,5 @@ if not exist "%VENV%\Scripts\python.exe" (
     )
 )
 
-REM --- 3. Run it (the script installs any missing libraries into this venv) ---
+REM --- 3. Run it (loops until you press Ctrl+C; installs libraries as needed) ---
 "%VENV%\Scripts\python.exe" "%SCRIPT%" %*
-
-echo.
-pause

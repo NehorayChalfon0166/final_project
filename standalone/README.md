@@ -15,6 +15,9 @@ When you run it, it will automatically:
    - **total money currently in the wallet** (BTC and USD),
    - the **top 3 features** that drove the model's decision.
 
+It then stays open and asks for **another wallet** — analyze as many as you
+like. **Press `Ctrl+C` to close.**
+
 ## One-click run
 
 Download **just the launcher** for your OS, put it in an empty folder, and
@@ -34,10 +37,13 @@ So you only need the one `run.command` / `run.bat` file to get started.
 ## Command line
 
 ```bash
-python3 wallet_analyzer.py                          # prompts for an address
-python3 wallet_analyzer.py bc1qxy...address...       # analyze directly
+python3 wallet_analyzer.py                          # prompts, then loops for more
+python3 wallet_analyzer.py bc1qxy...address...       # analyze this one, then loop
 python3 wallet_analyzer.py 1A1zP1eP...  --json       # machine-readable JSON
 ```
+
+The analyzer keeps prompting for the next wallet after each report; press
+`Ctrl+C` to close it.
 
 **Requirements:** Python 3.9+ and an internet connection (for the blockchain
 data, and for downloading libraries/model on first run).
