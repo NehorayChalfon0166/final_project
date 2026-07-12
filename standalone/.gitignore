@@ -1,0 +1,3 @@
+# Generated at runtime by the standalone analyzer
+.venv/
+.model_cache/
