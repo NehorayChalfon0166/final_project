@@ -71,9 +71,11 @@
 \begin{titlepage}
 \centering
 \vspace*{0.6cm}
-{\large Ben-Gurion University of the Negev\par}
-{\large Faculty of Natural Sciences\par}
-{\large Department of Computer Science\par}
+{\large\heb{הפקולטה למדעי המחשב והמידע ע"ש שטיין}\par}
+\vspace{3pt}
+{\large\heb{אוניברסיטת בן-גוריון בנגב}\par}
+\vspace{3pt}
+{\large\heb{התוכנית להנדסת נתונים}\par}
 \vspace{1.6cm}
 
 \rule{\linewidth}{0.4pt}\\[0.5cm]
@@ -118,10 +120,11 @@ decide whether the wallet has been used for criminal activity?
 
 We frame the problem as binary node classification over per-wallet ego-graphs and train a
 three-layer \textbf{GATv2} graph attention network that reads both a wallet's own behaviour
-and the pattern of its one-hop transactions. The model is trained on a balanced merge of two
+and the pattern of its one-hop transactions. The model is trained on a combined corpus of two
 public labelled datasets, \textbf{REAL-CATS} (modern criminal wallets) and
-\textbf{Elliptic++} (theft/Ponzi era), comprising 86{,}870 training wallets and 21{,}718
-held-out test wallets. On the held-out test set the GNN reaches an \textbf{F\textsubscript{1}
+\textbf{Elliptic++} (theft/Ponzi era). Restricting to the wallets for which a one-hop
+ego-graph could be built and cached yields a benign-majority working corpus of 65{,}849
+training wallets and 11{,}880 held-out test wallets. On the held-out test set the GNN reaches an \textbf{F\textsubscript{1}
 of 0.869}, accuracy 0.894, recall 0.884, and \textbf{ROC-AUC 0.959}, with well-calibrated
 probabilities after temperature scaling. It beats an XGBoost classifier trained on the same
 twelve tabular features (F\textsubscript{1} 0.755) and a plain GCN baseline
@@ -132,13 +135,13 @@ and a React web application deployed at \live.
 
 % ----- Hebrew abstract (RTL, native XeTeX) — follows the English one -----
 \vspace{1.4em}
-{\noindent\LARGE\bfseries\heb{תקציר}\par}
+{\raggedleft\LARGE\bfseries\heb{תקציר}\par}
 \addcontentsline{toc}{chapter}{\heb{תקציר} (Hebrew Abstract)}
 \vspace{0.5em}
 \hebpar{רשתות מטבעות קריפטוגרפיים מנוצלות יותר ויותר להלבנת הון, תשלומי כופרה, הונאה ומימון טרור. מכיוון שביטקוין הוא פסאודו-אנונימי וגרף העסקאות שלו עצום ודינמי, צוותי הרגולציה בבנקים, בבורסות ובגופי אכיפת החוק עדיין מסתמכים בעיקר על רשימות שחורות סטטיות המסמנות ארנקים רק לאחר שכבר ידוע שהם זדוניים. פרויקט זה שואל שאלה מדעית-נתונים חלופית: בהינתן כתובת ביטקוין והיסטוריית העסקאות הציבורית שלה בלבד, האם ניתן להכריע אם הארנק שימש לפעילות פלילית?}
 
 \vspace{4pt}
-\hebpar{הגדרנו את הבעיה כסיווג בינארי של צמתים מעל גרפי-אֶגו של ארנקים בודדים, ואימנו רשת קשב גרפית מסוג GATv2 בת שלוש שכבות הקוראת גם את התנהגות הארנק עצמו וגם את דפוס העסקאות של שכניו הישירים. המודל אומן על מיזוג מאוזן של שני מאגרי נתונים ציבוריים מתויגים: REAL-CATS (ארנקים פליליים עדכניים) ו-Elliptic++, בסך 86,870 ארנקים לאימון ו-21,718 ארנקים למבחן. על קבוצת המבחן השיג המודל ציון F1 של 0.869, דיוק 0.894, היזכרות 0.884 ו-ROC-AUC של 0.959, עם הסתברויות מכוילות היטב לאחר כיול טמפרטורה. המודל עקף גם מסווג XGBoost שאומן על אותם שנים-עשר מאפיינים טבלאיים (F1 של 0.755) וגם בסיס GCN פשוט (F1 של 0.582). הפער של כ-11 נקודות ב-F1 על פני XGBoost הוא הממצא המרכזי: המבנה המקומי של העסקאות סביב הארנק נושא מידע שאין במאפייני הארנק עצמו. המודל המאומן מוגש דרך שרת FastAPI ואפליקציית React שנפרסו בכתובת cryptotrace.cs.bgu.ac.il.}
+\hebpar{הגדרנו את הבעיה כסיווג בינארי של צמתים מעל גרפי-אֶגו של ארנקים בודדים, ואימנו רשת קשב גרפית מסוג GATv2 בת שלוש שכבות הקוראת גם את התנהגות הארנק עצמו וגם את דפוס העסקאות של שכניו הישירים. המודל אומן על מיזוג של שני מאגרי נתונים ציבוריים מתויגים: REAL-CATS (ארנקים פליליים עדכניים) ו-Elliptic++. לאחר צמצום לארנקים שעבורם ניתן היה לבנות ולשמור גרף-אֶגו, מתקבל קורפוס עבודה שבו רוב הארנקים תמימים, בסך 65,849 ארנקים לאימון ו-11,880 ארנקים למבחן. על קבוצת המבחן השיג המודל ציון F1 של 0.869, דיוק 0.894, היזכרות 0.884 ו-ROC-AUC של 0.959, עם הסתברויות מכוילות היטב לאחר כיול טמפרטורה. המודל עקף גם מסווג XGBoost שאומן על אותם שנים-עשר מאפיינים טבלאיים (F1 של 0.755) וגם בסיס GCN פשוט (F1 של 0.582). הפער של כ-11 נקודות ב-F1 על פני XGBoost הוא הממצא המרכזי: המבנה המקומי של העסקאות סביב הארנק נושא מידע שאין במאפייני הארנק עצמו. המודל המאומן מוגש דרך שרת FastAPI ואפליקציית React שנפרסו בכתובת cryptotrace.cs.bgu.ac.il.}
 
 % ===================== TOC / LISTS ==================================
 \tableofcontents
@@ -179,7 +182,7 @@ built around it. Each wallet becomes the centre of an \emph{ego-graph}: the wall
 carries twelve behavioural features, every counter-party it transacted with becomes a
 neighbour node, and each interaction becomes a directed, weighted edge. A three-layer GATv2
 graph attention network aggregates this neighbourhood into a single risk score. We merge
-REAL-CATS and Elliptic++ into one balanced corpus, and compare our model against two
+REAL-CATS and Elliptic++ into one combined corpus, and compare our model against two
 baselines that deliberately remove one ingredient each: an XGBoost classifier that sees the
 wallet's own features but no graph, and a plain GCN that sees the graph but ignores edge
 detail. Figure~\ref{fig:workflow} shows the end-to-end flow, from an input address to a
@@ -190,13 +193,13 @@ calibrated verdict.
 \includegraphics[width=0.98\linewidth]{figures/fig_method_overview.pdf}
 \caption{End-to-end method. A Bitcoin address is expanded into a one-hop ego-graph from live
 \texttt{mempool.space} data, passed through the trained GATv2 model, and returned as a
-calibrated risk verdict. The same model is trained offline on the balanced merge of REAL-CATS
+calibrated risk verdict. The same model is trained offline on the combined corpus of REAL-CATS
 and Elliptic++.}
 \label{fig:workflow}
 \end{figure}
 
 \section{Main Findings}
-On a held-out test set of 21{,}718 wallets, the GNN reaches F\textsubscript{1}~$=0.869$ and
+On a held-out test set of 11{,}880 wallets, the GNN reaches F\textsubscript{1}~$=0.869$ and
 ROC-AUC~$=0.959$, clearly ahead of XGBoost (F\textsubscript{1}~$=0.755$) and the plain GCN
 (F\textsubscript{1}~$=0.582$). The two controlled contrasts localise \emph{why}: the jump over
 the plain GCN shows that per-transaction detail (amount, direction, timing) matters, and the
@@ -226,9 +229,9 @@ calibrated risk score.
 \begin{description}[leftmargin=1.3em,style=nextline,itemsep=3pt]
   \item[G1 --- Graph model.] Build a GNN that classifies a wallet from a one-hop ego-graph
     combining the wallet's behaviour with its transaction neighbourhood.
-  \item[G2 --- Unified, balanced corpus.] Merge REAL-CATS and Elliptic++ onto a common
-    feature schema, remove overlap and label conflicts, and produce a class-balanced,
-    source-stratified train/test split.
+  \item[G2 --- Unified corpus.] Merge REAL-CATS and Elliptic++ onto a common
+    feature schema, remove overlap and label conflicts, sample benign controls per source,
+    and produce a source-stratified train/test split.
   \item[G3 --- Cross-dataset generalisation.] Test whether one model trained across both
     sources generalises across crime types and time periods, rather than over-fitting one source.
   \item[G4 --- Rigorous evaluation.] Quantify performance against a tabular baseline (XGBoost)
@@ -269,7 +272,7 @@ Two operational hurdles are the temporal nature of the data and the scarcity of 
 over time and address the cold-start problem via active learning. The RL-GNN fusion line of
 work \citep{rlgnn2025} tackles real-time detection in imbalanced streams by dynamically
 adjusting fraud thresholds to cope with concept drift. We do not model time recurrently, but we
-adopt imbalance-aware practice by \emph{balancing} the training corpus and encoding a
+adopt imbalance-aware practice by sampling benign controls when merging the sources and encoding a
 normalised timestamp on every edge.
 
 \section{Datasets and Benchmarking}
@@ -334,23 +337,28 @@ lifetime\_seconds\_log     & Time between first and last transaction \\
 \end{tabularx}
 \end{table}
 
-\section{Balanced Split}
+\section{Train/Test Split}
 A balancing step drops cross-source addresses whose labels disagree, collapses agreeing
-duplicates, keeps every criminal wallet plus a matched random sample of benign wallets within
-each source, and produces a stratified 80/20 split keyed on the joint (label, source). Both
-classes and both sources appear in identical proportions in train and test (Table~\ref{tab:split});
-the random seed is fixed throughout.
+duplicates, samples benign controls within each source, and takes a source-stratified 80/20
+split keyed on the joint (label, source) with a fixed seed. Because every model operates on
+ego-graphs, the working corpus is then restricted to the wallets for which a one-hop ego-graph
+could be fetched and cached; ego-graph construction succeeded more often for benign wallets, so
+the corpus actually used for training and evaluation (Table~\ref{tab:split}) retains a benign
+majority. Both sources appear in near-identical proportions across the train and test splits
+($\sim$82\% REAL-CATS), while the criminal share differs between them because caching dropped the
+two classes at different rates.
 
 \begin{table}[H]
 \centering\small
-\caption{Balanced, source-stratified train/test split.}
+\caption{Source-stratified train/test split, reported on the working corpus of wallets with a
+cached one-hop ego-graph (the rows actually used by all three models).}
 \label{tab:split}
 \begin{tabular}{lrrrrr}
 \toprule
 \textbf{Split} & \textbf{Rows} & \textbf{Criminal} & \textbf{Benign} & \textbf{REAL-CATS} & \textbf{Elliptic++} \\
 \midrule
-Training set & 86{,}870 & 43{,}435 & 43{,}435 & 64{,}044 & 22{,}826 \\
-Test set     & 21{,}718 & 10{,}859 & 10{,}859 & 16{,}012 &  5{,}706 \\
+Training set & 65{,}849 & 19{,}206 & 46{,}643 & 54{,}320 & 11{,}529 \\
+Test set     & 11{,}880 &  4{,}740 &  7{,}140 &  9{,}778 &  2{,}102 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -362,7 +370,8 @@ Test set     & 21{,}718 & 10{,}859 & 10{,}859 & 16{,}012 &  5{,}706 \\
 Exploratory analysis of both datasets guided every downstream choice. In \textbf{Elliptic++},
 labels are heavily imbalanced (illicit transactions average $\sim$11\% and only a small
 fraction of wallets are labelled), and illicit nodes are typically low-degree while licit nodes
-form high-degree hubs --- illicit actors rarely form tightly connected clusters and instead
+form high-degree hubs (Figure~\ref{fig:eda_degree}) --- illicit actors rarely form tightly
+connected clusters and instead
 blend into the wider network by transacting with unknown or licit nodes. Value distributions
 differ by class: illicit transactions concentrate at lower values with a sharper peak, whereas
 licit transactions have a heavier right tail. In \textbf{REAL-CATS}, criminal wallets are more
@@ -371,6 +380,34 @@ active than benign ones (median transaction count $4$ vs.\ $2$) and move more mo
 volume-based features are discriminative. The criminal category mix is dominated by scams
 and ransomware, with darknet markets and mixing services rarer but showing the highest
 transaction intensity.
+
+Figure~\ref{fig:eda_comp} shows the composition of the working corpus: benign-majority and
+dominated by REAL-CATS, with both sources kept in near-identical proportion across the train and
+test splits. Figure~\ref{fig:eda_degree} makes the structural difference in Elliptic++ concrete:
+illicit transaction nodes concentrate at low in- and out-degree, whereas licit nodes reach far
+into the high-degree tail. The out-degree gap is the sharpest --- illicit nodes almost never send
+to more than two counter-parties, while licit nodes fan out to hundreds --- which is exactly the
+neighbourhood structure the graph model is built to read.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.96\linewidth]{figures/fig_eda_composition.pdf}
+\caption{Composition of the working corpus (wallets with a cached one-hop ego-graph). Left:
+class counts per split; right: source counts per split. The corpus is benign-majority and
+$\sim$82\% REAL-CATS in both splits.}
+\label{fig:eda_comp}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\linewidth]{figures/fig_eda_degree.pdf}
+\caption{Elliptic++ transaction-graph degree distribution by class (4{,}545 illicit vs.\ 42{,}019
+licit nodes), as a percentage of each class's nodes on a log axis. Illicit nodes concentrate at
+low degree; licit nodes extend into the high-degree tail. Illicit out-degree tops out near two
+(max $3$), whereas licit out-degree reaches $472$ --- the ``high-degree hubs'' that node-level
+laundering blends into.}
+\label{fig:eda_degree}
+\end{figure}
 
 \section{Pre-processing Pipeline}
 The findings above translate into a fixed pre-processing pipeline, applied identically at
@@ -387,8 +424,9 @@ training and at inference:
     a live wallet cannot produce out-of-distribution values.
   \item \textbf{Correlation pruning.} Drop the seven features with pairwise $r>0.95$, leaving
     the twelve features of Table~\ref{tab:features}.
-  \item \textbf{Balancing \& split.} Balance classes within each source and take the stratified
-    80/20 split of Table~\ref{tab:split}.
+  \item \textbf{Controls \& split.} Sample benign controls within each source and take the
+    source-stratified 80/20 split of Table~\ref{tab:split} (reported on the ego-graph--cached
+    subset actually used).
 \end{enumerate}
 Maintaining \emph{train/inference parity} --- running exactly this pipeline on live wallet data ---
 was essential: an early unit mismatch (satoshis vs.\ BTC) made inference features up to
@@ -406,7 +444,9 @@ embedding plus a node-type embedding, so ghost neighbours are not treated as fre
 with all-zero behaviour. Each interaction is a directed edge with three features: the log of the
 amount transferred, a direction flag (1 outgoing, 0 incoming), and a timestamp normalised
 against the Bitcoin genesis block. Transaction history is fetched from the public
-\texttt{mempool.space} API and cached per address.
+\texttt{mempool.space} API (up to 50 transactions per wallet) and cached per address; the same
+50-transaction cap is used when building the training ego-graphs and at live inference, so the
+graph structure the model is trained on matches the structure it sees in production.
 
 \section{The Model: OptimalBitcoinGNN}
 The main model is a three-layer GATv2 graph attention network
@@ -440,7 +480,8 @@ Two baselines each remove exactly one ingredient, so the comparisons are control
 
 \section{Calibration}
 Neural classifiers are often over-confident \citep{guo2017calibration}. After training, a single
-temperature parameter is fit by LBFGS on a held-out calibration slice and applied at inference
+temperature parameter is fit by LBFGS on the held-out validation set (the 15\% split also used
+for early stopping) and applied at inference
 in the backend, so the displayed probabilities can be read as honest
 confidence values.
 
@@ -450,8 +491,9 @@ confidence values.
 \section{Protocol}
 The 80/20 stratified split gives the canonical train and test sets. Inside training, the training
 pool is further split 85/15 (fixed seed) into train and validation, the latter used for early
-stopping and best-epoch selection on validation F\textsubscript{1}. A small slice is reserved
-\emph{before} that split, exclusively for temperature scaling. All three models are trained and
+stopping and best-epoch selection on validation F\textsubscript{1}. The temperature parameter for
+post-hoc calibration is fit on this validation set as well (a dedicated calibration split is
+left to future work). All three models are trained and
 evaluated on \emph{exactly the same wallets} --- the rows whose address has a cached
 ego-graph --- so the comparison is row-for-row fair; XGBoost is retrained on the same
 intersection rather than on the full CSV.
@@ -499,7 +541,7 @@ Loss        & Cross-entropy, label smoothing $0$ \\
 Schedule    & $\le 150$ epochs, batch 64, early stop on val F\textsubscript{1} (patience 20) \\
 Calibration & LBFGS, max-iter 50, lr $0.01$ \\
 XGBoost     & 200 estimators, max-depth 8, lr 0.1, subsample 0.8, colsample 0.8 \\
-Basic GCN   & $3\times$ GCNConv, hidden 64, mean-pool readout, dropout 0.2 \\
+Basic GCN   & $3\times$ GCNConv, hidden 64, mean-pool readout, dropout 0.3 \\
 Seed        & 42 (split, sub-split, dataloader, torch RNG) \\
 \bottomrule
 \end{tabularx}
@@ -511,7 +553,7 @@ Seed        & 42 (split, sub-split, dataloader, torch RNG) \\
 \section{Head-to-Head Comparison}
 Table~\ref{tab:results} and Figure~\ref{fig:baseline} report all three models on the same
 11{,}880 shared test wallets. The GNN leads on every metric except precision, where it is within
-half a point of XGBoost while recovering \emph{far} more criminals (recall 0.884 vs.\ 0.673).
+a point of XGBoost while recovering \emph{far} more criminals (recall 0.884 vs.\ 0.673).
 
 \begin{table}[H]
 \centering\small
@@ -562,7 +604,8 @@ The confusion matrices (Figure~\ref{fig:cm}) contrast all three models on the sa
 Our GNN shows a balanced error profile --- 553 false negatives and 713 false positives out of
 11{,}880 --- missing relatively few criminals while keeping benign wallets mostly clear, whereas
 the plain GCN misses almost half of the criminal class. The ROC curves (Figure~\ref{fig:roc})
-give the GNN AUC~$=0.959$, well above XGBoost ($0.909$) and the plain GCN ($0.777$).
+give the GNN AUC~$=0.959$, well above XGBoost ($0.909$) and the plain GCN ($0.777$); on the
+imbalanced test set the GNN's PR-AUC is $0.941$.
 
 \begin{figure}[H]
 \centering
@@ -586,8 +629,10 @@ counts and row percentages). Left to right: Basic GCN, XGBoost, and our Optimal 
 \section{Calibration}
 After temperature scaling ($T=1.06$), the predicted probabilities are usable as risk thresholds.
 The reliability diagram (Figure~\ref{fig:reliability}) tracks the diagonal closely, with a low
-Expected Calibration Error, so the risk score the web application displays can be trusted at face
-value rather than read only as a ranking.
+Expected Calibration Error, so the risk score the web application displays can be read close to
+face value rather than only as a ranking. Because the temperature is fit on the validation set and
+the reliability diagram is measured on the held-out test set, this is a fair (not optimistic)
+estimate of calibration.
 
 \begin{figure}[H]
 \centering
@@ -620,8 +665,8 @@ transactions, more than raw volume, separates criminal from benign behaviour.
 
 \section{Summary}
 We built a graph-based Bitcoin wallet risk classifier that decides, from a single address and
-its public history, whether a wallet has been used for criminal activity. Trained on a balanced
-merge of REAL-CATS and Elliptic++, a three-layer GATv2 network reaches F\textsubscript{1}
+its public history, whether a wallet has been used for criminal activity. Trained on a combined
+corpus of REAL-CATS and Elliptic++, a three-layer GATv2 network reaches F\textsubscript{1}
 $=0.869$ and ROC-AUC $=0.959$ on a held-out test set, beating a tabular XGBoost baseline by
 $\sim$11 F\textsubscript{1} points and a plain GCN by $\sim$29. The controlled baselines show
 the gain comes specifically from reading the wallet's transaction neighbourhood, supporting the
@@ -635,11 +680,11 @@ learnable ghost embeddings and by removing label smoothing, then temperature sca
 building tens of thousands of ego-graphs against a rate-limited public API.
 
 \section{Future Work}
-Natural extensions are: (i) rebuild the training ego-graphs at full transaction pagination (current
-cached graphs captured only the first 25 transactions per wallet, a structure mismatch versus the
-500-transaction inference path); (ii) train on the larger graph corpus once the full download
-completes; (iii) add an independent validation split for calibration instead of reusing the test
-set; (iv) build a live adversarial test set of recent wallets in neither source to stress-test
+Natural extensions are: (i) raise the ego-graph transaction cap beyond the current 50 transactions
+per wallet --- applied identically at training and inference --- so deeper neighbourhoods are
+captured, and rebuild the corpus at that larger depth; (ii) train on the larger graph corpus once
+the full download completes; (iii) fit the temperature on a dedicated calibration split instead of
+reusing the early-stopping validation set; (iv) build a live adversarial test set of recent wallets in neither source to stress-test
 generalisation via precision@$k$; and (v) explore temporal GNN extensions and focal loss (already
 implemented but unused) for the residual class-hard cases.
 
@@ -669,8 +714,9 @@ history and balance. Invalid or empty addresses are rejected with a clear messag
 
 \section{Non-Functional Requirements}
 Analysis runs off the event loop so the UI stays responsive; wallet data is cached to avoid
-repeated API calls; transaction fetching is paginated to 500 transactions and issued
-sequentially to respect \texttt{mempool.space} rate limits; the UI meets basic accessibility and
+repeated API calls; transaction fetching is capped at 50 transactions per wallet and issued
+sequentially to respect \texttt{mempool.space} rate limits (the same cap used to build the
+training ego-graphs); the UI meets basic accessibility and
 contrast guidelines (verdict shown above model internals).
 
 \section{Testing}
@@ -690,7 +736,7 @@ the calibration scalar (seed 42).
 \begin{quote}\ttfamily
 python run\_pipeline.py --all
 \end{quote}
-or step by step: \texttt{--prepare} (build the balanced dataset) $\rightarrow$ \texttt{--graphs}
+or step by step: \texttt{--prepare} (build the dataset) $\rightarrow$ \texttt{--graphs}
 (build/cache ego-graphs) $\rightarrow$ \texttt{--baseline} (XGBoost) $\rightarrow$ \texttt{--train}
 (GNN) $\rightarrow$ \texttt{--evaluate} (metrics, comparison, calibration, error dumps). A single
 seed (42) governs the dataset split, the validation sub-split, the dataloader shuffle, and the
