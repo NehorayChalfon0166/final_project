@@ -115,12 +115,12 @@ from torch_geometric.utils import dropout_edge
 MEMPOOL_API = "https://mempool.space/api"
 SAT_TO_BTC = 1e-8
 
-# Where to grab the trained model if it isn't found on disk. Pinned to the
-# branch whose tip holds the latest retrained model (use-everything split,
-# 77,729 wallets; GNN ROC-AUC ~0.958).
+# Where to grab the trained model if it isn't found on disk. Tracks main, which
+# carries the latest retrained model (use-everything split, 77,729 wallets;
+# GNN ROC-AUC ~0.958).
 REPO_RAW_BASE = (
     "https://raw.githubusercontent.com/"
-    "NehorayChalfon0166/final_project/chore/cleanup-and-consolidate"
+    "NehorayChalfon0166/final_project/main"
 )
 MODEL_URL = f"{REPO_RAW_BASE}/outputs/gnn_model.pt"
 TEMPERATURE_URL = f"{REPO_RAW_BASE}/outputs/temperature.pt"

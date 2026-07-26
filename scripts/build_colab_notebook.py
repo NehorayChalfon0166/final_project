@@ -78,12 +78,12 @@ CLONE_CODE = """# Clone the public repo (shallow, ~few MB). Brings in:
 #   - outputs/gnn_model.pt + outputs/temperature.pt  (trained weights)
 #   - src/graph/graph_builder.py + src/graph/config.py
 #   - src/models/optimal_gnn.py
-# Pinned to the chore/cleanup-and-consolidate branch — it has the May-8
-# retrained model. Switch to 'main' once PR #2 is merged.
+# Tracks main, which now carries the latest retrained model (full
+# "use-everything" split, 77,729 wallets; GNN AUC ~0.958).
 import os, subprocess, sys
 
 REPO_URL    = 'https://github.com/NehorayChalfon0166/final_project.git'
-REPO_BRANCH = 'chore/cleanup-and-consolidate'
+REPO_BRANCH = 'main'
 REPO_DIR    = '/content/final_project' if os.path.exists('/content') else os.path.abspath('final_project')
 
 if not os.path.exists(REPO_DIR):
@@ -91,11 +91,20 @@ if not os.path.exists(REPO_DIR):
         ['git', 'clone', '--depth', '1', '--branch', REPO_BRANCH, REPO_URL, REPO_DIR]
     )
 else:
-    print(f'Already cloned at {REPO_DIR}')
+    # Repo already on disk (e.g. re-running in the same Colab session). A plain
+    # "already cloned" skip would keep a STALE checkout and silently run an OLD
+    # model, so fetch the branch tip and hard-reset onto it.
+    print(f'Repo exists at {REPO_DIR} — fetching latest {REPO_BRANCH} ...')
+    subprocess.check_call(['git', '-C', REPO_DIR, 'fetch', '--depth', '1', 'origin', REPO_BRANCH])
+    subprocess.check_call(['git', '-C', REPO_DIR, 'reset', '--hard', 'FETCH_HEAD'])
 
 if REPO_DIR not in sys.path:
     sys.path.insert(0, REPO_DIR)
-print(f'✓ Repo ready at {REPO_DIR}  (branch: {REPO_BRANCH})')
+
+_head = subprocess.check_output(
+    ['git', '-C', REPO_DIR, 'rev-parse', '--short', 'HEAD']
+).decode().strip()
+print(f'✓ Repo ready at {REPO_DIR}  (branch: {REPO_BRANCH} @ {_head})')
 """
 
 IMPORTS_CODE = """import re
@@ -801,8 +810,10 @@ def main():
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     out_path = os.path.join(project_root, 'notebooks', 'colab_wallet_analyzer.ipynb')
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    with open(out_path, 'w') as f:
-        json.dump(notebook, f, indent=1)
+    # ensure_ascii=False keeps em-dashes, arrows and ✓ literal in the .ipynb, so
+    # regenerating produces a minimal diff instead of re-escaping every cell.
+    with open(out_path, 'w', encoding='utf-8') as f:
+        json.dump(notebook, f, indent=1, ensure_ascii=False)
     print(f'Wrote {out_path}')
     print(f'  cells: {len(cells)} ({sum(1 for c in cells if c["cell_type"] == "code")} code, '
           f'{sum(1 for c in cells if c["cell_type"] == "markdown")} markdown)')

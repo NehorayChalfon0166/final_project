@@ -6,7 +6,7 @@ REM environment, and runs the analyzer inside it.
 cd /d "%~dp0"
 
 set "SCRIPT=wallet_analyzer.py"
-set "SCRIPT_URL=https://raw.githubusercontent.com/NehorayChalfon0166/final_project/chore/cleanup-and-consolidate/standalone/wallet_analyzer.py"
+set "SCRIPT_URL=https://raw.githubusercontent.com/NehorayChalfon0166/final_project/main/standalone/wallet_analyzer.py"
 set "VENV=.venv"
 
 REM --- 1. Download the analyzer script if it isn't next to this launcher ---
