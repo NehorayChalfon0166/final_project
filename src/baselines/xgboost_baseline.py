@@ -1,264 +1,235 @@
 """
 XGBoost Baseline
 ================
-Train XGBoost classifier for comparison with GNN.
+Tabular baseline trained and evaluated on exactly the same wallets the GNN sees:
+    train on the rows of src/features/output/train_dataset.csv whose address
+           has a matching .pt under graph_data/graphs/train/
+    test  on the rows of src/features/output/test_dataset.csv whose address
+           has a matching .pt under graph_data/graphs/test/
+
+Single fit, single eval — no cross-validation. This matches the GNN's protocol
+row-for-row so the comparison printed by ``run_pipeline.py --evaluate`` is
+apples-to-apples.
 
 Usage:
     from src.baselines import XGBoostBaseline
 
     baseline = XGBoostBaseline()
     baseline.load_data()
-    results = baseline.train()
+    baseline.train()
     baseline.save_results()
 """
+import json
 import os
 import sys
-import json
-import numpy as np
-import pandas as pd
+import time
+from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Optional, Tuple
-from dataclasses import dataclass, asdict
+from typing import Optional
 
-from sklearn.model_selection import StratifiedKFold
-from sklearn.preprocessing import StandardScaler
+import numpy as np
+import pandas as pd
 from sklearn.metrics import (
     accuracy_score,
+    confusion_matrix,
+    f1_score,
     precision_score,
     recall_score,
-    f1_score,
     roc_auc_score,
-    confusion_matrix
 )
+from sklearn.preprocessing import StandardScaler
 from xgboost import XGBClassifier
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-from src.graph.config import FEATURE_COLUMNS, FEATURE_DIR
+
+# Importing `src.graph.config` would trigger `src/graph/__init__.py`, which
+# eagerly loads `dataloader` and therefore PyTorch. PyTorch + sklearn +
+# system libomp end up loading three OpenMP runtimes into one process on
+# macOS, which deadlocks at import time. The baseline doesn't need torch at
+# all, so we load `config.py` as a standalone module file to skip the
+# package init.
+import importlib.util as _importlib_util
+
+_CONFIG_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    "src", "graph", "config.py",
+)
+_spec = _importlib_util.spec_from_file_location("_graph_config_standalone", _CONFIG_PATH)
+_config = _importlib_util.module_from_spec(_spec)
+_spec.loader.exec_module(_config)
+FEATURE_COLUMNS = _config.FEATURE_COLUMNS
+FEATURE_DIR = _config.FEATURE_DIR
+GRAPHS_DIR = _config.GRAPHS_DIR
 
 
 @dataclass
 class Results:
-    """Results container."""
+    """Held-out test-set metrics."""
     accuracy: float
-    accuracy_std: float
     precision: float
-    precision_std: float
     recall: float
-    recall_std: float
     f1: float
-    f1_std: float
     roc_auc: float
-    roc_auc_std: float
     confusion_matrix: list
-    n_samples: int
+    n_train_samples: int
+    n_test_samples: int
     n_features: int
     training_time: float
 
 
-class XGBoostBaseline:
-    """
-    XGBoost baseline model.
+XGB_PARAMS = dict(
+    n_estimators=200,
+    max_depth=8,
+    learning_rate=0.1,
+    subsample=0.8,
+    colsample_bytree=0.8,
+    n_jobs=-1,
+    eval_metric="logloss",
+    verbosity=0,
+)
 
-    Simple interface:
-        baseline = XGBoostBaseline()
-        baseline.load_data()
-        results = baseline.train()
-        baseline.save_results()
-    """
+
+class XGBoostBaseline:
+    """XGBoost classifier on the same train/test split the GNN uses."""
 
     def __init__(
         self,
-        n_folds: int = 5,
         random_state: int = 42,
-        output_dir: str = "baselines/results"
+        output_dir: str = "outputs/baseline",
     ):
-        self.n_folds = n_folds
         self.random_state = random_state
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-        self.X = None
-        self.y = None
+        self.X_train: Optional[np.ndarray] = None
+        self.y_train: Optional[np.ndarray] = None
+        self.X_test: Optional[np.ndarray] = None
+        self.y_test: Optional[np.ndarray] = None
         self.scaler = StandardScaler()
+        self.model: Optional[XGBClassifier] = None
         self.results: Optional[Results] = None
-        self.model = None
 
     def load_data(
         self,
-        data_path: Optional[str] = None,
-        features: Optional[list] = None
-    ) -> Tuple[np.ndarray, np.ndarray]:
-        """
-        Load data for training.
+        train_path: Optional[str] = None,
+        test_path: Optional[str] = None,
+        features: Optional[list] = None,
+        restrict_to_cached_graphs: bool = True,
+    ) -> None:
+        """Load the same train/test CSVs the GNN dataloader uses.
 
-        Args:
-            data_path: Path to CSV (default: balanced_training_dataset.csv)
-            features: Feature columns (default: 12 selected features)
-
-        Returns:
-            X, y arrays
+        When ``restrict_to_cached_graphs`` is True (the default), rows are
+        filtered to addresses that have a matching ``.pt`` file under
+        ``graph_data/graphs/{train,test}/`` — i.e. the exact wallets the GNN
+        trains and evaluates on. The XGBoost protocol then matches the GNN
+        protocol row-for-row.
         """
-        data_path = data_path or os.path.join(FEATURE_DIR, 'balanced_training_dataset.csv')
+        train_path = train_path or os.path.join(FEATURE_DIR, "train_dataset.csv")
+        test_path = test_path or os.path.join(FEATURE_DIR, "test_dataset.csv")
         features = features or FEATURE_COLUMNS
 
-        print(f"Loading data from {data_path}")
-        df = pd.read_csv(data_path)
+        print(f"Loading train from {train_path}")
+        train_df = pd.read_csv(train_path)
+        print(f"Loading test  from {test_path}")
+        test_df = pd.read_csv(test_path)
 
-        self.X = df[features].values
-        self.y = df['label'].values
+        if restrict_to_cached_graphs:
+            train_df = self._filter_to_cached_graphs(train_df, split="train")
+            test_df = self._filter_to_cached_graphs(test_df, split="test")
 
-        # Standardize
-        self.X = self.scaler.fit_transform(self.X)
+        # Fit the scaler on train only — test sees the same transform.
+        self.X_train = self.scaler.fit_transform(train_df[features].values)
+        self.y_train = train_df["label"].values
+        self.X_test = self.scaler.transform(test_df[features].values)
+        self.y_test = test_df["label"].values
 
-        print(f"Loaded {len(self.y):,} samples, {len(features)} features")
-        print(f"Class balance: {np.mean(self.y):.1%} positive")
+        print(
+            f"Train: {len(self.y_train):,} samples ({np.mean(self.y_train):.1%} criminal)"
+        )
+        print(
+            f"Test:  {len(self.y_test):,} samples ({np.mean(self.y_test):.1%} criminal)"
+        )
+        print(f"Features: {len(features)}")
 
-        return self.X, self.y
+    @staticmethod
+    def _filter_to_cached_graphs(df: pd.DataFrame, split: str) -> pd.DataFrame:
+        graph_dir = os.path.join(GRAPHS_DIR, split)
+        cached = {f[:-3] for f in os.listdir(graph_dir) if f.endswith(".pt")}
+        before = len(df)
+        df = df[df["address"].astype(str).isin(cached)].reset_index(drop=True)
+        print(
+            f"  Filtered {split}: {before:,} -> {len(df):,} rows "
+            f"(kept only addresses with a cached .pt graph)"
+        )
+        return df
 
     def train(self) -> Results:
-        """
-        Train with 5-fold cross-validation.
-
-        Returns:
-            Results dataclass with all metrics
-        """
-        import time
-
-        if self.X is None:
+        """Fit on train, evaluate on test."""
+        if self.X_train is None:
             self.load_data()
 
-        print(f"\nTraining XGBoost ({self.n_folds}-fold CV)...")
-        start_time = time.time()
+        print("\nTraining XGBoost (single fit, no CV)...")
+        start = time.time()
+        self.model = XGBClassifier(random_state=self.random_state, **XGB_PARAMS)
+        self.model.fit(self.X_train, self.y_train)
+        training_time = time.time() - start
 
-        cv = StratifiedKFold(
-            n_splits=self.n_folds,
-            shuffle=True,
-            random_state=self.random_state
-        )
+        y_pred = self.model.predict(self.X_test)
+        y_prob = self.model.predict_proba(self.X_test)[:, 1]
 
-        # Collect metrics per fold
-        metrics = {k: [] for k in ['accuracy', 'precision', 'recall', 'f1', 'roc_auc']}
-        all_preds, all_probs, all_labels = [], [], []
-
-        for fold, (train_idx, val_idx) in enumerate(cv.split(self.X, self.y)):
-            X_train, X_val = self.X[train_idx], self.X[val_idx]
-            y_train, y_val = self.y[train_idx], self.y[val_idx]
-
-            # Train
-            model = XGBClassifier(
-                n_estimators=200,
-                max_depth=8,
-                learning_rate=0.1,
-                subsample=0.8,
-                colsample_bytree=0.8,
-                random_state=self.random_state,
-                n_jobs=-1,
-                eval_metric='logloss',
-                verbosity=0
-            )
-            model.fit(X_train, y_train)
-
-            # Predict
-            y_pred = model.predict(X_val)
-            y_prob = model.predict_proba(X_val)[:, 1]
-
-            # Store
-            all_preds.extend(y_pred)
-            all_probs.extend(y_prob)
-            all_labels.extend(y_val)
-
-            # Metrics
-            metrics['accuracy'].append(accuracy_score(y_val, y_pred))
-            metrics['precision'].append(precision_score(y_val, y_pred))
-            metrics['recall'].append(recall_score(y_val, y_pred))
-            metrics['f1'].append(f1_score(y_val, y_pred))
-            metrics['roc_auc'].append(roc_auc_score(y_val, y_prob))
-
-            print(f"  Fold {fold+1}: Acc={metrics['accuracy'][-1]:.4f}, F1={metrics['f1'][-1]:.4f}")
-
-        training_time = time.time() - start_time
-
-        # Final model on all data
-        self.model = XGBClassifier(
-            n_estimators=200,
-            max_depth=8,
-            learning_rate=0.1,
-            subsample=0.8,
-            colsample_bytree=0.8,
-            random_state=self.random_state,
-            n_jobs=-1,
-            eval_metric='logloss',
-            verbosity=0
-        )
-        self.model.fit(self.X, self.y)
-
-        # Results
         self.results = Results(
-            accuracy=np.mean(metrics['accuracy']),
-            accuracy_std=np.std(metrics['accuracy']),
-            precision=np.mean(metrics['precision']),
-            precision_std=np.std(metrics['precision']),
-            recall=np.mean(metrics['recall']),
-            recall_std=np.std(metrics['recall']),
-            f1=np.mean(metrics['f1']),
-            f1_std=np.std(metrics['f1']),
-            roc_auc=np.mean(metrics['roc_auc']),
-            roc_auc_std=np.std(metrics['roc_auc']),
-            confusion_matrix=confusion_matrix(all_labels, all_preds).tolist(),
-            n_samples=len(self.y),
-            n_features=self.X.shape[1],
-            training_time=training_time
+            accuracy=accuracy_score(self.y_test, y_pred),
+            precision=precision_score(self.y_test, y_pred),
+            recall=recall_score(self.y_test, y_pred),
+            f1=f1_score(self.y_test, y_pred),
+            roc_auc=roc_auc_score(self.y_test, y_prob),
+            confusion_matrix=confusion_matrix(self.y_test, y_pred).tolist(),
+            n_train_samples=len(self.y_train),
+            n_test_samples=len(self.y_test),
+            n_features=self.X_test.shape[1],
+            training_time=training_time,
         )
-
         self._print_results()
         return self.results
 
-    def _print_results(self):
-        """Print formatted results."""
+    def _print_results(self) -> None:
         r = self.results
         print(f"\n{'='*50}")
-        print("XGBoost Results")
+        print("XGBoost Results (held-out test set)")
         print(f"{'='*50}")
-        print(f"Accuracy:  {r.accuracy*100:.2f}% ± {r.accuracy_std*100:.2f}%")
-        print(f"Precision: {r.precision*100:.2f}% ± {r.precision_std*100:.2f}%")
-        print(f"Recall:    {r.recall*100:.2f}% ± {r.recall_std*100:.2f}%")
-        print(f"F1 Score:  {r.f1*100:.2f}% ± {r.f1_std*100:.2f}%")
-        print(f"ROC-AUC:   {r.roc_auc:.4f} ± {r.roc_auc_std:.4f}")
+        print(f"Accuracy:  {r.accuracy*100:.2f}%")
+        print(f"Precision: {r.precision*100:.2f}%")
+        print(f"Recall:    {r.recall*100:.2f}%")
+        print(f"F1 Score:  {r.f1*100:.2f}%")
+        print(f"ROC-AUC:   {r.roc_auc:.4f}")
         print(f"{'='*50}")
 
     def save_results(self, filename: str = "xgboost_results.json") -> Path:
-        """Save results to JSON."""
         if self.results is None:
             raise ValueError("No results. Run train() first.")
-
         output_path = self.output_dir / filename
-
-        data = {
-            'model': 'XGBoost',
-            'results': asdict(self.results),
-            'features': FEATURE_COLUMNS,
-            'timestamp': datetime.now().isoformat()
+        payload = {
+            "model": "XGBoost",
+            "protocol": "single fit on train rows that have a cached .pt graph, evaluation on test rows that have a cached .pt graph (matches GNN row-for-row)",
+            "results": asdict(self.results),
+            "features": FEATURE_COLUMNS,
+            "timestamp": datetime.now().isoformat(),
         }
-
-        with open(output_path, 'w') as f:
-            json.dump(data, f, indent=2)
-
+        with open(output_path, "w") as f:
+            json.dump(payload, f, indent=2)
         print(f"Results saved to {output_path}")
         return output_path
 
     def save_model(self, filename: str = "xgboost_model.json") -> Path:
-        """Save trained model."""
         if self.model is None:
             raise ValueError("No model. Run train() first.")
-
         output_path = self.output_dir / filename
         self.model.save_model(str(output_path))
         print(f"Model saved to {output_path}")
         return output_path
 
     def load_model(self, filename: str = "xgboost_model.json"):
-        """Load a saved model."""
         model_path = self.output_dir / filename
         self.model = XGBClassifier()
         self.model.load_model(str(model_path))
@@ -266,23 +237,18 @@ class XGBoostBaseline:
         return self.model
 
     def predict(self, X: np.ndarray) -> np.ndarray:
-        """Predict on new data."""
         if self.model is None:
             raise ValueError("No model. Run train() or load_model() first.")
-        X_scaled = self.scaler.transform(X)
-        return self.model.predict(X_scaled)
+        return self.model.predict(self.scaler.transform(X))
 
     def predict_proba(self, X: np.ndarray) -> np.ndarray:
-        """Predict probabilities on new data."""
         if self.model is None:
             raise ValueError("No model. Run train() or load_model() first.")
-        X_scaled = self.scaler.transform(X)
-        return self.model.predict_proba(X_scaled)
+        return self.model.predict_proba(self.scaler.transform(X))
 
 
-# Convenience function
 def train_xgboost_baseline() -> Results:
-    """Quick function to train XGBoost baseline."""
+    """Convenience: load data, train, save results + model."""
     baseline = XGBoostBaseline()
     baseline.load_data()
     results = baseline.train()

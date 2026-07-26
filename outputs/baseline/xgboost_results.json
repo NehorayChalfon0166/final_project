@@ -1,0 +1,40 @@
+{
+  "model": "XGBoost",
+  "protocol": "single fit on train rows that have a cached .pt graph, evaluation on test rows that have a cached .pt graph (matches GNN row-for-row)",
+  "results": {
+    "accuracy": 0.826010101010101,
+    "precision": 0.8605341246290801,
+    "recall": 0.6729957805907173,
+    "f1": 0.7552977388421925,
+    "roc_auc": 0.9088110898367787,
+    "confusion_matrix": [
+      [
+        6623,
+        517
+      ],
+      [
+        1550,
+        3190
+      ]
+    ],
+    "n_train_samples": 65849,
+    "n_test_samples": 11880,
+    "n_features": 12,
+    "training_time": 1.410634994506836
+  },
+  "features": [
+    "lifetime_seconds_log",
+    "activity_rate_log",
+    "in_out_balance_log",
+    "total_txs_log",
+    "send_receive_ratio_log",
+    "fee_per_tx_log",
+    "blocks_btwn_txs_mean_log",
+    "fee_share_mean_log",
+    "avg_tx_size_log",
+    "tx_size_range_log",
+    "max_sent_log",
+    "max_received_log"
+  ],
+  "timestamp": "2026-06-04T15:25:21.862620"
+}

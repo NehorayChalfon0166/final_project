@@ -1,0 +1,115 @@
+<svg viewBox="30 110 920 1365" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <filter id="sh" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#9aa7b8" flood-opacity="0.32"/>
+    </filter>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#9aa3ad"/>
+    </marker>
+  </defs>
+
+  <!-- 1. INPUT (pale-blue oval) -->
+  <ellipse cx="490" cy="170" rx="220" ry="48" fill="#dcebfb" stroke="#9bc1e6" stroke-width="2" filter="url(#sh)"/>
+  <text x="490" y="164" text-anchor="middle" font-size="18" font-weight="700" fill="#274b6b">Input Graph</text>
+  <text x="490" y="188" text-anchor="middle" font-size="13.5" fill="#3f5f7d">x [N, 12] · edge_index · edge_attr [E, 3]</text>
+
+  <!-- 2. GHOST NODE HANDLING (yellow process) -->
+  <rect x="230" y="240" width="520" height="98" rx="16" fill="#fdf3c7" stroke="#e8d488" stroke-width="2" filter="url(#sh)"/>
+  <text x="490" y="270" text-anchor="middle" font-size="17" font-weight="700" fill="#5c4f1f">Ghost-Node Handling</text>
+  <text x="490" y="294" text-anchor="middle" font-size="13" fill="#6b5d27">replace zero rows with learned embedding</text>
+  <text x="490" y="314" text-anchor="middle" font-size="13" fill="#6b5d27">concat [feat, has_feat, type_emb] → Linear → 12</text>
+
+  <!-- 3. GATv2 Layer 1 (salmon hexagon) -->
+  <polygon points="270,438 380,384 600,384 710,438 600,492 380,492" fill="#e7defa" stroke="#b9a3e8" stroke-width="2" filter="url(#sh)"/>
+  <text x="490" y="420" text-anchor="middle" font-size="16" font-weight="700" fill="#4a3a78">GATv2 — Layer 1</text>
+  <text x="490" y="442" text-anchor="middle" font-size="12.5" fill="#6a5a9a">12 → 64, heads=4, edge_dim=3</text>
+  <text x="490" y="462" text-anchor="middle" font-size="12.5" fill="#6a5a9a">LayerNorm → ELU → Dropout → 256</text>
+
+  <!-- 4. GATv2 Layer 2 (salmon hexagon) -->
+  <polygon points="270,620 380,566 600,566 710,620 600,674 380,674" fill="#e7defa" stroke="#b9a3e8" stroke-width="2" filter="url(#sh)"/>
+  <text x="490" y="602" text-anchor="middle" font-size="16" font-weight="700" fill="#4a3a78">GATv2 — Layer 2</text>
+  <text x="490" y="624" text-anchor="middle" font-size="12.5" fill="#6a5a9a">256 → 64, heads=4, edge_dim=3</text>
+  <text x="490" y="644" text-anchor="middle" font-size="12.5" fill="#6a5a9a">LayerNorm → ELU → Dropout → 256</text>
+
+  <!-- Sum node 1 -->
+  <circle cx="490" cy="710" r="16" fill="#ffffff" stroke="#9aa3ad" stroke-width="2"/>
+  <text x="490" y="711" text-anchor="middle" dominant-baseline="central" font-size="20" font-weight="700" fill="#5b6775">+</text>
+
+  <!-- 5. GATv2 Layer 3 (salmon hexagon) -->
+  <polygon points="270,834 380,780 600,780 710,834 600,888 380,888" fill="#e7defa" stroke="#b9a3e8" stroke-width="2" filter="url(#sh)"/>
+  <text x="490" y="816" text-anchor="middle" font-size="16" font-weight="700" fill="#4a3a78">GATv2 — Layer 3</text>
+  <text x="490" y="838" text-anchor="middle" font-size="12.5" fill="#6a5a9a">256 → 32, heads=2, edge_dim=3</text>
+  <text x="490" y="858" text-anchor="middle" font-size="12.5" fill="#6a5a9a">LayerNorm → ELU → Dropout → 64</text>
+
+  <!-- Sum node 2 -->
+  <circle cx="490" cy="924" r="16" fill="#ffffff" stroke="#9aa3ad" stroke-width="2"/>
+  <text x="490" y="925" text-anchor="middle" dominant-baseline="central" font-size="20" font-weight="700" fill="#5b6775">+</text>
+
+  <!-- 6. READOUT heads (salmon hexagons) -->
+  <polygon points="70,1038 117,988 283,988 330,1038 283,1088 117,1088" fill="#f6b0a8" stroke="#df8d83" stroke-width="2" filter="url(#sh)"/>
+  <text x="200" y="1032" text-anchor="middle" font-size="15" font-weight="700" fill="#6e2c25">Center node</text>
+  <text x="200" y="1053" text-anchor="middle" font-size="12" fill="#824039">h[node 0 / graph]</text>
+
+  <polygon points="360,1038 407,988 573,988 620,1038 573,1088 407,1088" fill="#f6b0a8" stroke="#df8d83" stroke-width="2" filter="url(#sh)"/>
+  <text x="490" y="1032" text-anchor="middle" font-size="15" font-weight="700" fill="#6e2c25">Mean pool</text>
+  <text x="490" y="1053" text-anchor="middle" font-size="12" fill="#824039">graph-level avg</text>
+
+  <polygon points="650,1038 697,988 863,988 910,1038 863,1088 697,1088" fill="#f6b0a8" stroke="#df8d83" stroke-width="2" filter="url(#sh)"/>
+  <text x="780" y="1032" text-anchor="middle" font-size="15" font-weight="700" fill="#6e2c25">Max pool</text>
+  <text x="780" y="1053" text-anchor="middle" font-size="12" fill="#824039">graph-level max</text>
+
+  <!-- 7. CONCAT (yellow process) -->
+  <rect x="330" y="1116" width="320" height="64" rx="14" fill="#fdf3c7" stroke="#e8d488" stroke-width="2" filter="url(#sh)"/>
+  <text x="490" y="1142" text-anchor="middle" font-size="16" font-weight="700" fill="#5c4f1f">Concat → 192-d</text>
+  <text x="490" y="1164" text-anchor="middle" font-size="13" fill="#6b5d27">[ 64 | 64 | 64 ]</text>
+
+  <!-- 8. CLASSIFIER MLP (yellow process) -->
+  <rect x="310" y="1220" width="360" height="128" rx="16" fill="#fdf3c7" stroke="#e8d488" stroke-width="2" filter="url(#sh)"/>
+  <text x="490" y="1248" text-anchor="middle" font-size="16" font-weight="700" fill="#5c4f1f">Classifier MLP</text>
+  <text x="490" y="1274" text-anchor="middle" font-size="13" fill="#6b5d27">Linear 192 → 64</text>
+  <text x="490" y="1298" text-anchor="middle" font-size="13" fill="#6b5d27">ELU → Dropout(0.3)</text>
+  <text x="490" y="1322" text-anchor="middle" font-size="13" fill="#6b5d27">Linear 64 → 2</text>
+
+  <!-- 9. OUTPUT (green) -->
+  <rect x="340" y="1390" width="300" height="72" rx="16" fill="#d8f0d6" stroke="#a4d6a0" stroke-width="2.5" filter="url(#sh)"/>
+  <text x="490" y="1420" text-anchor="middle" font-size="17" font-weight="700" fill="#2c4f2a">Logits [B, 2]</text>
+  <text x="490" y="1444" text-anchor="middle" font-size="14" font-weight="600" fill="#3a6137">benign vs criminal</text>
+
+  <!-- ===== spine arrows ===== -->
+  <line x1="490" y1="218" x2="490" y2="236" stroke="#9aa3ad" stroke-width="2.2" marker-end="url(#arrow)"/>
+  <line x1="490" y1="338" x2="490" y2="380" stroke="#9aa3ad" stroke-width="2.2" marker-end="url(#arrow)"/>
+  <line x1="490" y1="492" x2="490" y2="562" stroke="#9aa3ad" stroke-width="2.2" marker-end="url(#arrow)"/>
+  <line x1="490" y1="674" x2="490" y2="692" stroke="#9aa3ad" stroke-width="2.2" marker-end="url(#arrow)"/>
+  <line x1="490" y1="726" x2="490" y2="776" stroke="#9aa3ad" stroke-width="2.2" marker-end="url(#arrow)"/>
+  <line x1="490" y1="888" x2="490" y2="906" stroke="#9aa3ad" stroke-width="2.2" marker-end="url(#arrow)"/>
+
+  <!-- branch dots -->
+  <circle cx="490" cy="360" r="4" fill="#9aa3ad"/>
+  <text x="502" y="356" font-size="12" fill="#6b7785">x_init saved</text>
+  <circle cx="490" cy="528" r="4" fill="#9aa3ad"/>
+  <text x="502" y="524" font-size="12" fill="#6b7785">h_residual saved</text>
+
+  <!-- residual skip (layer 1 -> sum 1) -->
+  <path d="M 490 528 H 880 V 710 H 510" fill="none" stroke="#9aa3ad" stroke-width="1.8" marker-end="url(#arrow)"/>
+  <rect x="822" y="605" width="116" height="28" rx="8" fill="#fdf3c7" stroke="#e8d488" stroke-width="1.5"/>
+  <text x="880" y="620" text-anchor="middle" dominant-baseline="central" font-size="12" fill="#6b5d27">residual_proj</text>
+
+  <!-- initial residual (x_init -> sum 2) -->
+  <path d="M 490 360 H 100 V 924 H 470" fill="none" stroke="#9aa3ad" stroke-width="1.8" marker-end="url(#arrow)"/>
+  <rect x="44" y="605" width="112" height="28" rx="8" fill="#fdf3c7" stroke="#e8d488" stroke-width="1.5"/>
+  <text x="100" y="620" text-anchor="middle" dominant-baseline="central" font-size="12" fill="#6b5d27">initial_proj</text>
+
+  <!-- fanout: sum 2 -> 3 readout heads -->
+  <path d="M 490 940 V 966 H 200 V 984" fill="none" stroke="#9aa3ad" stroke-width="2.2" marker-end="url(#arrow)"/>
+  <line x1="490" y1="940" x2="490" y2="984" stroke="#9aa3ad" stroke-width="2.2" marker-end="url(#arrow)"/>
+  <path d="M 490 940 V 966 H 780 V 984" fill="none" stroke="#9aa3ad" stroke-width="2.2" marker-end="url(#arrow)"/>
+
+  <!-- merge: 3 heads -> concat -->
+  <path d="M 200 1088 V 1102 H 490 V 1112" fill="none" stroke="#9aa3ad" stroke-width="2.2" marker-end="url(#arrow)"/>
+  <line x1="490" y1="1088" x2="490" y2="1112" stroke="#9aa3ad" stroke-width="2.2" marker-end="url(#arrow)"/>
+  <path d="M 780 1088 V 1102 H 490 V 1112" fill="none" stroke="#9aa3ad" stroke-width="2.2" marker-end="url(#arrow)"/>
+
+  <!-- concat -> classifier -> output -->
+  <line x1="490" y1="1180" x2="490" y2="1216" stroke="#9aa3ad" stroke-width="2.2" marker-end="url(#arrow)"/>
+  <line x1="490" y1="1348" x2="490" y2="1386" stroke="#9aa3ad" stroke-width="2.2" marker-end="url(#arrow)"/>
+</svg>

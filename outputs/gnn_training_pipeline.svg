@@ -1,0 +1,165 @@
+<svg viewBox="20 95 1840 685" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <filter id="sh" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#9aa7b8" flood-opacity="0.32"/>
+    </filter>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#9aa3ad"/>
+    </marker>
+  </defs>
+
+  <!-- lane dividers -->
+  <line x1="410" y1="110" x2="410" y2="762" stroke="#aebfd2" stroke-width="3.5" stroke-dasharray="10 8"/>
+  <line x1="930" y1="110" x2="930" y2="762" stroke="#aebfd2" stroke-width="3.5" stroke-dasharray="10 8"/>
+  <line x1="1455" y1="110" x2="1455" y2="762" stroke="#aebfd2" stroke-width="3.5" stroke-dasharray="10 8"/>
+
+  <!-- section headers -->
+  <text x="200" y="128" text-anchor="middle" font-size="18" font-weight="700" letter-spacing="2" fill="#6b7785">DATA</text>
+  <line x1="158" y1="140" x2="242" y2="140" stroke="#6b7785" stroke-width="2"/>
+  <text x="640" y="128" text-anchor="middle" font-size="18" font-weight="700" letter-spacing="2" fill="#6b7785">GRAPH BUILDING</text>
+  <line x1="528" y1="140" x2="752" y2="140" stroke="#6b7785" stroke-width="2"/>
+  <text x="1180" y="128" text-anchor="middle" font-size="18" font-weight="700" letter-spacing="2" fill="#6b7785">MODELS</text>
+  <line x1="1124" y1="140" x2="1236" y2="140" stroke="#6b7785" stroke-width="2"/>
+  <text x="1660" y="128" text-anchor="middle" font-size="18" font-weight="700" letter-spacing="2" fill="#6b7785">EVALUATION</text>
+  <line x1="1582" y1="140" x2="1738" y2="140" stroke="#6b7785" stroke-width="2"/>
+
+  <!-- ============ DATA ============ -->
+  <!-- input ovals -->
+  <ellipse cx="118" cy="205" rx="80" ry="34" fill="#dcebfb" stroke="#9bc1e6" stroke-width="2" filter="url(#sh)"/>
+  <text x="118" y="200" text-anchor="middle" font-size="14" font-weight="600" fill="#274b6b">REAL-CATS</text>
+  <text x="118" y="218" text-anchor="middle" font-size="13" fill="#3f5f7d">dataset</text>
+
+  <ellipse cx="292" cy="205" rx="80" ry="34" fill="#dcebfb" stroke="#9bc1e6" stroke-width="2" filter="url(#sh)"/>
+  <text x="292" y="200" text-anchor="middle" font-size="14" font-weight="600" fill="#274b6b">Elliptic++</text>
+  <text x="292" y="218" text-anchor="middle" font-size="13" fill="#3f5f7d">dataset</text>
+
+  <!-- feature engineering box -->
+  <rect x="62" y="300" width="278" height="120" rx="16" fill="#fdf3c7" stroke="#e8d488" stroke-width="2" filter="url(#sh)"/>
+  <text x="201" y="345" text-anchor="middle" font-size="16" font-weight="700" fill="#5c4f1f">Feature Engineering +</text>
+  <text x="201" y="370" text-anchor="middle" font-size="15" fill="#6b5d27">Balanced, Deduplicated</text>
+  <text x="201" y="392" text-anchor="middle" font-size="15" fill="#6b5d27">Split</text>
+
+  <!-- doc/graph stack icon -->
+  <g filter="url(#sh)">
+    <rect x="178" y="470" width="92" height="64" rx="6" fill="#cdd3da" stroke="#b3bac2" stroke-width="1.5"/>
+    <rect x="169" y="463" width="92" height="64" rx="6" fill="#dfe3e8" stroke="#b3bac2" stroke-width="1.5"/>
+    <rect x="160" y="456" width="92" height="64" rx="6" fill="#eef1f4" stroke="#aab2bb" stroke-width="1.5"/>
+  </g>
+  <line x1="172" y1="476" x2="240" y2="476" stroke="#aab2bb" stroke-width="2"/>
+  <line x1="172" y1="488" x2="240" y2="488" stroke="#aab2bb" stroke-width="2"/>
+  <line x1="172" y1="500" x2="222" y2="500" stroke="#aab2bb" stroke-width="2"/>
+  <text x="206" y="556" text-anchor="middle" font-size="15" font-weight="700" fill="#3b4654">Labeled Wallets</text>
+  <text x="206" y="576" text-anchor="middle" font-size="14" fill="#54616e">~77k</text>
+
+  <!-- DATA arrows -->
+  <line x1="135" y1="237" x2="172" y2="300" stroke="#9aa3ad" stroke-width="2.2" marker-end="url(#arrow)"/>
+  <line x1="275" y1="237" x2="232" y2="300" stroke="#9aa3ad" stroke-width="2.2" marker-end="url(#arrow)"/>
+  <line x1="201" y1="420" x2="206" y2="452" stroke="#9aa3ad" stroke-width="2.2" marker-end="url(#arrow)"/>
+
+  <!-- DATA -> GRAPH elbow -->
+  <polyline points="252,492 360,492 360,230 491,230" fill="none" stroke="#9aa3ad" stroke-width="2.2" marker-end="url(#arrow)"/>
+
+  <!-- ============ GRAPH BUILDING ============ -->
+  <rect x="495" y="190" width="290" height="82" rx="16" fill="#fdf3c7" stroke="#e8d488" stroke-width="2" filter="url(#sh)"/>
+  <text x="640" y="222" text-anchor="middle" font-size="15" font-weight="700" fill="#5c4f1f">Fetch Transaction Neighborhood</text>
+  <text x="640" y="245" text-anchor="middle" font-size="14" fill="#6b5d27">(mempool.space)</text>
+
+  <!-- hexagons -->
+  <polygon points="455,380 497.5,336 582.5,336 625,380 582.5,424 497.5,424" fill="#f6b0a8" stroke="#df8d83" stroke-width="2" filter="url(#sh)"/>
+  <text x="540" y="376" text-anchor="middle" font-size="14" font-weight="600" fill="#6e2c25">Node Features</text>
+  <text x="540" y="396" text-anchor="middle" font-size="13" fill="#824039">(12-d)</text>
+
+  <polygon points="617,380 681,332 809,332 873,380 809,428 681,428" fill="#f6b0a8" stroke="#df8d83" stroke-width="2" filter="url(#sh)"/>
+  <text x="745" y="374" text-anchor="middle" font-size="14" font-weight="600" fill="#6e2c25">Edge Features</text>
+  <text x="745" y="394" text-anchor="middle" font-size="12" fill="#824039">(3-d: amount, direction, time)</text>
+
+  <!-- ego graph icon -->
+  <g filter="url(#sh)">
+    <rect x="598" y="462" width="84" height="76" rx="12" fill="#eef3f8" stroke="#c2d2e2" stroke-width="2"/>
+  </g>
+  <line x1="622" y1="486" x2="660" y2="486" stroke="#7c8896" stroke-width="2"/>
+  <line x1="622" y1="486" x2="636" y2="516" stroke="#7c8896" stroke-width="2"/>
+  <line x1="660" y1="486" x2="636" y2="516" stroke="#7c8896" stroke-width="2"/>
+  <line x1="636" y1="516" x2="664" y2="514" stroke="#7c8896" stroke-width="2"/>
+  <circle cx="622" cy="486" r="6" fill="#5b6775"/>
+  <circle cx="660" cy="486" r="6" fill="#5b6775"/>
+  <circle cx="636" cy="516" r="6" fill="#5b6775"/>
+  <circle cx="664" cy="514" r="5" fill="#8a96a4"/>
+  <text x="640" y="560" text-anchor="middle" font-size="14" font-weight="700" fill="#3b4654">Ego-Graph (.pt)</text>
+
+  <!-- split node + train/test -->
+  <circle cx="640" cy="600" r="8" fill="#9aa3ad"/>
+  <ellipse cx="558" cy="678" rx="74" ry="30" fill="#dcebfb" stroke="#9bc1e6" stroke-width="2" filter="url(#sh)"/>
+  <text x="558" y="683" text-anchor="middle" font-size="14" font-weight="600" fill="#274b6b">Train ~66k</text>
+  <ellipse cx="742" cy="678" rx="74" ry="30" fill="#dcebfb" stroke="#9bc1e6" stroke-width="2" filter="url(#sh)"/>
+  <text x="742" y="683" text-anchor="middle" font-size="14" font-weight="600" fill="#274b6b">Test ~12k</text>
+
+  <!-- GRAPH arrows -->
+  <line x1="640" y1="272" x2="555" y2="334" stroke="#9aa3ad" stroke-width="2.2" marker-end="url(#arrow)"/>
+  <line x1="640" y1="272" x2="730" y2="330" stroke="#9aa3ad" stroke-width="2.2" marker-end="url(#arrow)"/>
+  <line x1="552" y1="424" x2="624" y2="464" stroke="#9aa3ad" stroke-width="2.2" marker-end="url(#arrow)"/>
+  <line x1="752" y1="428" x2="660" y2="464" stroke="#9aa3ad" stroke-width="2.2" marker-end="url(#arrow)"/>
+  <line x1="640" y1="562" x2="640" y2="592" stroke="#9aa3ad" stroke-width="2.2" marker-end="url(#arrow)"/>
+  <line x1="632" y1="606" x2="572" y2="650" stroke="#9aa3ad" stroke-width="2.2" marker-end="url(#arrow)"/>
+  <line x1="648" y1="606" x2="728" y2="650" stroke="#9aa3ad" stroke-width="2.2" marker-end="url(#arrow)"/>
+
+  <!-- GRAPH -> MODELS bus -->
+  <polyline points="558,708 558,742 900,742" fill="none" stroke="#9aa3ad" stroke-width="2.2"/>
+  <polyline points="742,708 742,742" fill="none" stroke="#9aa3ad" stroke-width="2.2"/>
+  <line x1="900" y1="742" x2="900" y2="255" stroke="#9aa3ad" stroke-width="2.2"/>
+  <line x1="900" y1="255" x2="978" y2="255" stroke="#9aa3ad" stroke-width="2.2" marker-end="url(#arrow)"/>
+  <line x1="900" y1="558" x2="1008" y2="558" stroke="#9aa3ad" stroke-width="2.2" marker-end="url(#arrow)"/>
+  <line x1="900" y1="668" x2="1008" y2="668" stroke="#9aa3ad" stroke-width="2.2" marker-end="url(#arrow)"/>
+
+  <!-- ============ MODELS ============ -->
+  <!-- highlight glow behind main model -->
+  <rect x="972" y="187" width="416" height="136" rx="20" fill="#fbe79b" opacity="0.55"/>
+  <rect x="980" y="195" width="400" height="120" rx="16" fill="#fdf3c7" stroke="#d4a017" stroke-width="3.5" filter="url(#sh)"/>
+  <text x="1180" y="238" text-anchor="middle" font-size="21" font-weight="700" fill="#5c4f1f">OptimalGNN</text>
+  <text x="1180" y="266" text-anchor="middle" font-size="14" fill="#6b5d27">3× GATv2 + attention, ghost-node</text>
+  <text x="1180" y="287" text-anchor="middle" font-size="14" fill="#6b5d27">embeddings, hybrid readout</text>
+  <text x="1366" y="212" text-anchor="end" font-size="12" font-weight="700" fill="#b6820a">★ main</text>
+
+  <!-- training hexagons -->
+  <polygon points="972,400 1011,358 1089,358 1128,400 1089,442 1011,442" fill="#f6b0a8" stroke="#df8d83" stroke-width="2" filter="url(#sh)"/>
+  <text x="1050" y="396" text-anchor="middle" font-size="12.5" font-weight="600" fill="#6e2c25">AdamW +</text>
+  <text x="1050" y="414" text-anchor="middle" font-size="12.5" fill="#824039">OneCycleLR</text>
+
+  <polygon points="1102,400 1141,358 1219,358 1258,400 1219,442 1141,442" fill="#f6b0a8" stroke="#df8d83" stroke-width="2" filter="url(#sh)"/>
+  <text x="1180" y="396" text-anchor="middle" font-size="12.5" font-weight="600" fill="#6e2c25">Early Stopping</text>
+  <text x="1180" y="414" text-anchor="middle" font-size="12.5" fill="#824039">(val F1)</text>
+
+  <polygon points="1232,400 1271,358 1349,358 1388,400 1349,442 1271,442" fill="#f6b0a8" stroke="#df8d83" stroke-width="2" filter="url(#sh)"/>
+  <text x="1310" y="396" text-anchor="middle" font-size="12.5" font-weight="600" fill="#6e2c25">Temperature</text>
+  <text x="1310" y="414" text-anchor="middle" font-size="12.5" fill="#824039">Calibration</text>
+
+  <!-- connectors box -> hexagons -->
+  <line x1="1090" y1="315" x2="1055" y2="356" stroke="#c9b48a" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="1180" y1="315" x2="1180" y2="356" stroke="#c9b48a" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="1270" y1="315" x2="1305" y2="356" stroke="#c9b48a" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- baseline boxes -->
+  <rect x="1010" y="525" width="340" height="64" rx="14" fill="#fdf3c7" stroke="#e8d488" stroke-width="2" filter="url(#sh)"/>
+  <text x="1180" y="563" text-anchor="middle" font-size="16" font-weight="600" fill="#5c4f1f">XGBoost (tabular baseline)</text>
+
+  <rect x="1010" y="636" width="340" height="64" rx="14" fill="#fdf3c7" stroke="#e8d488" stroke-width="2" filter="url(#sh)"/>
+  <text x="1180" y="674" text-anchor="middle" font-size="16" font-weight="600" fill="#5c4f1f">BasicGCN (graph baseline)</text>
+
+  <!-- ============ EVALUATION ============ -->
+  <circle cx="1660" cy="400" r="95" fill="#e7defa" stroke="#b9a3e8" stroke-width="2.5" filter="url(#sh)"/>
+  <text x="1660" y="394" text-anchor="middle" font-size="16" font-weight="700" fill="#4a3a78">Held-out Test</text>
+  <text x="1660" y="416" text-anchor="middle" font-size="16" font-weight="700" fill="#4a3a78">Evaluation</text>
+
+  <rect x="1480" y="560" width="360" height="120" rx="16" fill="#d8f0d6" stroke="#a4d6a0" stroke-width="2.5" filter="url(#sh)"/>
+  <text x="1660" y="603" text-anchor="middle" font-size="18" font-weight="700" fill="#2c4f2a">Best Model: GNN</text>
+  <text x="1660" y="634" text-anchor="middle" font-size="16" font-weight="600" fill="#3a6137">ROC-AUC 0.958</text>
+  <text x="1660" y="658" text-anchor="middle" font-size="16" font-weight="600" fill="#3a6137">F1 0.869</text>
+
+  <!-- models -> eval -->
+  <line x1="1380" y1="255" x2="1575" y2="356" stroke="#9aa3ad" stroke-width="2.2" marker-end="url(#arrow)"/>
+  <line x1="1350" y1="557" x2="1575" y2="443" stroke="#9aa3ad" stroke-width="2.2" marker-end="url(#arrow)"/>
+  <line x1="1350" y1="668" x2="1588" y2="462" stroke="#9aa3ad" stroke-width="2.2" marker-end="url(#arrow)"/>
+
+  <!-- eval -> best model -->
+  <line x1="1660" y1="495" x2="1660" y2="558" stroke="#9aa3ad" stroke-width="2.2" marker-end="url(#arrow)"/>
+</svg>

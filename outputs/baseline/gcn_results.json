@@ -1,0 +1,44 @@
+{
+  "model": "BasicGCN",
+  "protocol": "train on cached train-split ego-graphs, evaluate on cached test-split ego-graphs",
+  "architecture": {
+    "layers": 3,
+    "type": "GCNConv",
+    "hidden_dim": 64,
+    "dropout": 0.3,
+    "edge_attr_used": false,
+    "readout": "global_mean_pool",
+    "num_node_features": 12,
+    "num_parameters": 9282
+  },
+  "hyperparameters": {
+    "epochs": 25,
+    "batch_size": 128,
+    "lr": 0.005,
+    "weight_decay": 0.01,
+    "patience": 5,
+    "epochs_trained": 8,
+    "best_epoch": 2,
+    "best_val_f1": 0.5379238028661307
+  },
+  "results": {
+    "accuracy": 0.7010942760942761,
+    "precision": 0.6582379558158105,
+    "recall": 0.5217299578059071,
+    "f1": 0.5820877956925974,
+    "roc_auc": 0.7770493682705151,
+    "confusion_matrix": [
+      [
+        5856,
+        1284
+      ],
+      [
+        2267,
+        2473
+      ]
+    ],
+    "n_samples": 11880,
+    "training_time": 276.78189420700073
+  },
+  "timestamp": "2026-06-04T15:30:29.406291"
+}

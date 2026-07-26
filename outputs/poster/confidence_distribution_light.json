@@ -1,0 +1,15 @@
+{
+  "temperature": 1.0577061176300049,
+  "splits": [
+    "test"
+  ],
+  "test": {
+    "n": 11880,
+    "n_benign": 7140,
+    "n_criminal": 4740,
+    "mean_confidence": 0.8078430891036987,
+    "median_confidence": 0.9420932531356812,
+    "frac_high_conf_>0.8": 0.6964646464646465,
+    "frac_low_conf_<0.2": 0.05176767676767677
+  }
+}
