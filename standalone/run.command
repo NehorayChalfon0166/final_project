@@ -7,7 +7,7 @@ set -e
 cd "$(dirname "$0")"
 
 SCRIPT="wallet_analyzer.py"
-SCRIPT_URL="https://raw.githubusercontent.com/NehorayChalfon0166/final_project/chore/cleanup-and-consolidate/standalone/wallet_analyzer.py"
+SCRIPT_URL="https://raw.githubusercontent.com/NehorayChalfon0166/final_project/main/standalone/wallet_analyzer.py"
 PY="${PYTHON:-python3}"
 VENV=".venv"
 
